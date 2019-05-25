@@ -20,6 +20,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/roachpb"
 	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
+	"github.com/cockroachdb/cockroach/pkg/util/pgcode"
 )
 
 func TestWrap(t *testing.T) {
@@ -33,7 +34,7 @@ func TestWrap(t *testing.T) {
 	}
 
 	for i, test := range testData {
-		werr := pgerror.Wrap(test.err, pgerror.CodeSyntaxError, "woo")
+		werr := pgerror.Wrap(test.err, pgcode.Syntax, "woo")
 
 		if !errors.Is(werr, test.err) {
 			t.Errorf("%d: original error not preserved; expected %+v, got %+v", i, test.err, werr)

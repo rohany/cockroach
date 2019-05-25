@@ -28,6 +28,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/types"
 	"github.com/cockroachdb/cockroach/pkg/util/hlc"
 	"github.com/cockroachdb/cockroach/pkg/util/log"
+	"github.com/cockroachdb/cockroach/pkg/util/pgcode"
 )
 
 type scrubNode struct {
@@ -215,7 +216,7 @@ func (n *scrubNode) startScrubTable(
 		switch v := option.(type) {
 		case *tree.ScrubOptionIndex:
 			if indexesSet {
-				return pgerror.Newf(pgerror.CodeSyntaxError,
+				return pgerror.Newf(pgcode.Syntax,
 					"cannot specify INDEX option more than once")
 			}
 			indexesSet = true
@@ -226,11 +227,11 @@ func (n *scrubNode) startScrubTable(
 			n.run.checkQueue = append(n.run.checkQueue, checks...)
 		case *tree.ScrubOptionPhysical:
 			if physicalCheckSet {
-				return pgerror.Newf(pgerror.CodeSyntaxError,
+				return pgerror.Newf(pgcode.Syntax,
 					"cannot specify PHYSICAL option more than once")
 			}
 			if hasTS {
-				return pgerror.Newf(pgerror.CodeSyntaxError,
+				return pgerror.Newf(pgcode.Syntax,
 					"cannot use AS OF SYSTEM TIME with PHYSICAL option")
 			}
 			physicalCheckSet = true
@@ -238,7 +239,7 @@ func (n *scrubNode) startScrubTable(
 			n.run.checkQueue = append(n.run.checkQueue, physicalChecks...)
 		case *tree.ScrubOptionConstraint:
 			if constraintsSet {
-				return pgerror.Newf(pgerror.CodeSyntaxError,
+				return pgerror.Newf(pgcode.Syntax,
 					"cannot specify CONSTRAINT option more than once")
 			}
 			constraintsSet = true
@@ -464,7 +465,7 @@ func createIndexCheckOperations(
 				missingIndexNames = append(missingIndexNames, idxName.String())
 			}
 		}
-		return nil, pgerror.Newf(pgerror.CodeUndefinedObjectError,
+		return nil, pgerror.Newf(pgcode.UndefinedObject,
 			"specified indexes to check that do not exist on table %q: %v",
 			tableDesc.Name, strings.Join(missingIndexNames, ", "))
 	}
@@ -497,7 +498,7 @@ func createConstraintCheckOperations(
 			if v, ok := constraints[string(constraintName)]; ok {
 				wantedConstraints[string(constraintName)] = v
 			} else {
-				return nil, pgerror.Newf(pgerror.CodeUndefinedObjectError,
+				return nil, pgerror.Newf(pgcode.UndefinedObject,
 					"constraint %q of relation %q does not exist", constraintName, tableDesc.Name)
 			}
 		}

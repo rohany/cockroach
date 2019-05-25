@@ -18,6 +18,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
 	"github.com/cockroachdb/cockroach/pkg/sql/types"
+	"github.com/cockroachdb/cockroach/pkg/util/pgcode"
 )
 
 // IndexedVarContainer provides the implementation of TypeCheck, Eval, and
@@ -65,7 +66,7 @@ func (v *IndexedVar) TypeCheck(ctx *SemaContext, desired *types.T) (TypedExpr, e
 		// used a column reference in a place where it's not allowed by
 		// the docs, so just say that instead.
 		return nil, pgerror.Newf(
-			pgerror.CodeUndefinedColumnError, "column reference @%d not allowed in this context", v.Idx+1)
+			pgcode.UndefinedColumn, "column reference @%d not allowed in this context", v.Idx+1)
 	}
 	v.typ = ctx.IVarContainer.IndexedVarResolvedType(v.Idx)
 	return v, nil
@@ -151,7 +152,7 @@ func (h *IndexedVarHelper) BindIfUnbound(ivar *IndexedVar) (*IndexedVar, error) 
 	// across containers.
 	if ivar.Idx < 0 || ivar.Idx >= len(h.vars) {
 		return ivar, pgerror.Newf(
-			pgerror.CodeUndefinedColumnError, "invalid column ordinal: @%d", ivar.Idx+1)
+			pgcode.UndefinedColumn, "invalid column ordinal: @%d", ivar.Idx+1)
 	}
 
 	if !ivar.Used {

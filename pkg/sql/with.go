@@ -23,6 +23,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 	"github.com/cockroachdb/cockroach/pkg/sql/sqlbase"
 	"github.com/cockroachdb/cockroach/pkg/sql/sqltelemetry"
+	"github.com/cockroachdb/cockroach/pkg/util/pgcode"
 )
 
 // This file contains the implementation of common table expressions. See
@@ -113,7 +114,7 @@ func (p *planner) initWith(ctx context.Context, with *tree.With) (func(p *planne
 		for _, cte := range with.CTEList {
 			if _, ok := frame[cte.Name.Alias]; ok {
 				return nil, pgerror.Newf(
-					pgerror.CodeDuplicateAliasError,
+					pgcode.DuplicateAlias,
 					"WITH query name %s specified more than once",
 					cte.Name.Alias)
 			}
@@ -159,7 +160,7 @@ func (p *planner) getCTEDataSource(tn *tree.TableName) (planDataSource, bool, er
 			plan := cteSource.plan
 			cols := planColumns(plan)
 			if len(cols) == 0 {
-				return planDataSource{}, false, pgerror.Newf(pgerror.CodeFeatureNotSupportedError,
+				return planDataSource{}, false, pgerror.Newf(pgcode.FeatureNotSupported,
 					"WITH clause %q does not have a RETURNING clause", tree.ErrString(tn))
 			}
 			dataSource := planDataSource{

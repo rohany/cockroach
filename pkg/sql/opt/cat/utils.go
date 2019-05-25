@@ -19,6 +19,7 @@ import (
 
 	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
+	"github.com/cockroachdb/cockroach/pkg/util/pgcode"
 	"github.com/pkg/errors"
 )
 
@@ -61,7 +62,7 @@ func ResolveTableIndex(
 		table, ok := ds.(Table)
 		if !ok {
 			return nil, pgerror.Newf(
-				pgerror.CodeWrongObjectTypeError, "%q is not a table", name.Table.TableName,
+				pgcode.WrongObjectType, "%q is not a table", name.Table.TableName,
 			)
 		}
 		if name.Index == "" {
@@ -74,7 +75,7 @@ func ResolveTableIndex(
 			}
 		}
 		return nil, pgerror.Newf(
-			pgerror.CodeUndefinedObjectError, "index %q does not exist", name.Index,
+			pgcode.UndefinedObject, "index %q does not exist", name.Index,
 		)
 	}
 
@@ -101,7 +102,7 @@ func ResolveTableIndex(
 		for i := 0; i < table.IndexCount(); i++ {
 			if idx := table.Index(i); idx.Name() == tree.Name(name.Index) {
 				if found != nil {
-					return nil, pgerror.Newf(pgerror.CodeAmbiguousParameterError,
+					return nil, pgerror.Newf(pgcode.AmbiguousParameter,
 						"index name %q is ambiguous (found in %s and %s)",
 						name.Index, table.Name().String(), found.Table().Name().String())
 				}
@@ -112,7 +113,7 @@ func ResolveTableIndex(
 	}
 	if found == nil {
 		return nil, pgerror.Newf(
-			pgerror.CodeUndefinedObjectError, "index %q does not exist", name.Index,
+			pgcode.UndefinedObject, "index %q does not exist", name.Index,
 		)
 	}
 	return found, nil

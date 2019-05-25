@@ -24,6 +24,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/privilege"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 	"github.com/cockroachdb/cockroach/pkg/sql/sqlbase"
+	"github.com/cockroachdb/cockroach/pkg/util/pgcode"
 )
 
 // CreateUserNode creates entries in the system.users table.
@@ -83,7 +84,7 @@ func (n *CreateUserNode) startExec(params runParams) error {
 
 	// Reject the "public" role. It does not have an entry in the users table but is reserved.
 	if normalizedUsername == sqlbase.PublicRole {
-		return pgerror.Newf(pgerror.CodeReservedNameError, "role name %q is reserved", sqlbase.PublicRole)
+		return pgerror.Newf(pgcode.ReservedName, "role name %q is reserved", sqlbase.PublicRole)
 	}
 
 	var opName string
@@ -115,7 +116,7 @@ func (n *CreateUserNode) startExec(params runParams) error {
 		if isRole {
 			msg = "a role"
 		}
-		return pgerror.Newf(pgerror.CodeDuplicateObjectError,
+		return pgerror.Newf(pgcode.DuplicateObject,
 			"%s named %s already exists",
 			msg, normalizedUsername)
 	}

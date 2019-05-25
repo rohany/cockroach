@@ -25,6 +25,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/types"
 	"github.com/cockroachdb/cockroach/pkg/util"
 	"github.com/cockroachdb/cockroach/pkg/util/hlc"
+	"github.com/cockroachdb/cockroach/pkg/util/pgcode"
 )
 
 // renderNode encapsulates the render logic of a select statement:
@@ -110,7 +111,7 @@ func (p *planner) Select(
 		if s.Select.OrderBy != nil {
 			if orderBy != nil {
 				return nil, pgerror.Newf(
-					pgerror.CodeSyntaxError, "multiple ORDER BY clauses not allowed",
+					pgcode.Syntax, "multiple ORDER BY clauses not allowed",
 				)
 			}
 			orderBy = s.Select.OrderBy
@@ -118,7 +119,7 @@ func (p *planner) Select(
 		if s.Select.Limit != nil {
 			if limit != nil {
 				return nil, pgerror.Newf(
-					pgerror.CodeSyntaxError, "multiple LIMIT clauses not allowed",
+					pgcode.Syntax, "multiple LIMIT clauses not allowed",
 				)
 			}
 			limit = s.Select.Limit
@@ -285,7 +286,7 @@ func (p *planner) SelectClause(
 
 			if !distinct.distinctOnColIdxs.Contains(order.ColIdx) {
 				return nil, pgerror.Newf(
-					pgerror.CodeSyntaxError,
+					pgcode.Syntax,
 					"SELECT DISTINCT ON expressions must match initial ORDER BY expressions",
 				)
 			}
@@ -478,7 +479,7 @@ func (p *planner) getTimestamp(asOf tree.AsOfClause) (hlc.Timestamp, bool, error
 		// would not be set globally for the entire txn.
 		if p.semaCtx.AsOfTimestamp == nil {
 			return hlc.MaxTimestamp, false,
-				pgerror.Newf(pgerror.CodeSyntaxError,
+				pgerror.Newf(pgcode.Syntax,
 					"AS OF SYSTEM TIME must be provided on a top-level statement")
 		}
 
@@ -640,7 +641,7 @@ func (r *renderNode) colIdxByRenderAlias(
 						// reject with an ambiguity error.
 						if r == nil || !r.equivalentRenders(j, index) {
 							return 0, pgerror.Newf(
-								pgerror.CodeAmbiguousAliasError,
+								pgcode.AmbiguousAlias,
 								"%s \"%s\" is ambiguous", op, target,
 							)
 						}

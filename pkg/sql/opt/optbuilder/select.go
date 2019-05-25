@@ -28,6 +28,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 	"github.com/cockroachdb/cockroach/pkg/sql/sqltelemetry"
 	"github.com/cockroachdb/cockroach/pkg/sql/types"
+	"github.com/cockroachdb/cockroach/pkg/util/pgcode"
 )
 
 const (
@@ -120,7 +121,7 @@ func (b *Builder) buildDataSource(
 	case *tree.StatementSource:
 		outScope = b.buildStmt(source.Statement, nil /* desiredTypes */, inScope)
 		if len(outScope.cols) == 0 {
-			panic(pgerror.Newf(pgerror.CodeUndefinedColumnError,
+			panic(pgerror.Newf(pgcode.UndefinedColumn,
 				"statement source \"%v\" does not return any columns", source.Statement))
 		}
 		return outScope
@@ -153,7 +154,7 @@ func (b *Builder) buildView(view cat.View, inScope *scope) (outScope *scope) {
 	if !ok {
 		stmt, err := parser.ParseOne(view.Query())
 		if err != nil {
-			wrapped := pgerror.Wrapf(err, pgerror.CodeSyntaxError,
+			wrapped := pgerror.Wrapf(err, pgcode.Syntax,
 				"failed to parse underlying query from view %q", view.Name())
 			panic(builderError{wrapped})
 		}
@@ -227,7 +228,7 @@ func (b *Builder) renameSource(as tree.AliasClause, scope *scope) {
 				if colIdx >= len(scope.cols) {
 					srcName := tree.ErrString(&tableAlias)
 					panic(pgerror.Newf(
-						pgerror.CodeInvalidColumnReferenceError,
+						pgcode.InvalidColumnReference,
 						"source %q has %d columns available but %d columns specified",
 						srcName, aliasIdx, len(colAlias),
 					))
@@ -259,7 +260,7 @@ func (b *Builder) buildScanFromTableRef(
 	tab cat.Table, ref *tree.TableRef, indexFlags *tree.IndexFlags, inScope *scope,
 ) (outScope *scope) {
 	if ref.Columns != nil && len(ref.Columns) == 0 {
-		panic(pgerror.Newf(pgerror.CodeSyntaxError,
+		panic(pgerror.Newf(pgcode.Syntax,
 			"an explicit list of column IDs must include at least one column"))
 	}
 
@@ -281,7 +282,7 @@ func (b *Builder) buildScanFromTableRef(
 				ord++
 			}
 			if ord >= cnt {
-				panic(pgerror.Newf(pgerror.CodeUndefinedColumnError,
+				panic(pgerror.Newf(pgcode.UndefinedColumn,
 					"column [%d] does not exist", c))
 			}
 			ordinals[i] = ord
@@ -354,7 +355,7 @@ func (b *Builder) buildScan(
 
 	if tab.IsVirtualTable() {
 		if indexFlags != nil {
-			panic(pgerror.Newf(pgerror.CodeSyntaxError,
+			panic(pgerror.Newf(pgcode.Syntax,
 				"index flags not allowed with virtual tables"))
 		}
 		private := memo.VirtualScanPrivate{Table: tabID, Cols: tabColIDs}
@@ -455,7 +456,7 @@ func (b *Builder) buildCTE(ctes []*tree.CTE, inScope *scope) (outScope *scope) {
 
 		if _, ok := outScope.ctes[name.String()]; ok {
 			panic(pgerror.Newf(
-				pgerror.CodeDuplicateAliasError,
+				pgcode.DuplicateAlias,
 				"WITH query name %s specified more than once", ctes[i].Name.Alias),
 			)
 		}
@@ -464,7 +465,7 @@ func (b *Builder) buildCTE(ctes []*tree.CTE, inScope *scope) (outScope *scope) {
 		if ctes[i].Name.Cols != nil {
 			if len(cteScope.cols) != len(ctes[i].Name.Cols) {
 				panic(pgerror.Newf(
-					pgerror.CodeInvalidColumnReferenceError,
+					pgcode.InvalidColumnReference,
 					"source %q has %d columns available but %d columns specified",
 					name, len(cteScope.cols), len(ctes[i].Name.Cols),
 				))
@@ -480,7 +481,7 @@ func (b *Builder) buildCTE(ctes []*tree.CTE, inScope *scope) (outScope *scope) {
 		}
 
 		if len(cols) == 0 {
-			panic(pgerror.Newf(pgerror.CodeFeatureNotSupportedError,
+			panic(pgerror.Newf(pgcode.FeatureNotSupported,
 				"WITH clause %q does not have a RETURNING clause", tree.ErrString(&name)))
 		}
 
@@ -562,7 +563,7 @@ func (b *Builder) buildSelect(
 		if stmt.OrderBy != nil {
 			if orderBy != nil {
 				panic(pgerror.Newf(
-					pgerror.CodeSyntaxError, "multiple ORDER BY clauses not allowed",
+					pgcode.Syntax, "multiple ORDER BY clauses not allowed",
 				))
 			}
 			orderBy = stmt.OrderBy
@@ -570,7 +571,7 @@ func (b *Builder) buildSelect(
 		if stmt.Limit != nil {
 			if limit != nil {
 				panic(pgerror.Newf(
-					pgerror.CodeSyntaxError, "multiple LIMIT clauses not allowed",
+					pgcode.Syntax, "multiple LIMIT clauses not allowed",
 				))
 			}
 			limit = stmt.Limit
@@ -594,7 +595,7 @@ func (b *Builder) buildSelect(
 		outScope = b.buildValuesClause(t, desiredTypes, inScope)
 
 	default:
-		panic(pgerror.Newf(pgerror.CodeFeatureNotSupportedError,
+		panic(pgerror.Newf(pgcode.FeatureNotSupported,
 			"unknown select statement: %T", stmt.Select))
 	}
 
@@ -861,7 +862,7 @@ func (b *Builder) validateAsOf(asOf tree.AsOfClause) {
 	}
 
 	if b.semaCtx.AsOfTimestamp == nil {
-		panic(pgerror.Newf(pgerror.CodeSyntaxError,
+		panic(pgerror.Newf(pgcode.Syntax,
 			"AS OF SYSTEM TIME must be provided on a top-level statement"))
 	}
 

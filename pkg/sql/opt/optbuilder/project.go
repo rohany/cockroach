@@ -20,6 +20,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 	"github.com/cockroachdb/cockroach/pkg/sql/types"
+	"github.com/cockroachdb/cockroach/pkg/util/pgcode"
 )
 
 // constructProjectForScope constructs a projection if it will result in a
@@ -123,7 +124,7 @@ func (b *Builder) analyzeSelectList(
 				switch v.(type) {
 				case tree.UnqualifiedStar, *tree.AllColumnsSelector, *tree.TupleStar:
 					if e.As != "" {
-						panic(pgerror.Newf(pgerror.CodeSyntaxError,
+						panic(pgerror.Newf(pgcode.Syntax,
 							"%q cannot be aliased", tree.ErrString(v)))
 					}
 

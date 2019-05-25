@@ -24,6 +24,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 	"github.com/cockroachdb/cockroach/pkg/sql/sqlbase"
 	"github.com/cockroachdb/cockroach/pkg/sql/types"
+	"github.com/cockroachdb/cockroach/pkg/util/pgcode"
 )
 
 type valuesNode struct {
@@ -104,7 +105,7 @@ func (p *planner) Values(
 			} else if v.columns[i].Typ.Family() == types.UnknownFamily {
 				v.columns[i].Typ = typ
 			} else if typ.Family() != types.UnknownFamily && !typ.Equivalent(v.columns[i].Typ) {
-				return nil, pgerror.Newf(pgerror.CodeDatatypeMismatchError,
+				return nil, pgerror.Newf(pgcode.DatatypeMismatch,
 					"VALUES types %s and %s cannot be matched", typ, v.columns[i].Typ)
 			}
 
@@ -191,7 +192,7 @@ func (n *valuesNode) Close(ctx context.Context) {
 
 func newValuesListLenErr(exp, got int) error {
 	return pgerror.Newf(
-		pgerror.CodeSyntaxError,
+		pgcode.Syntax,
 		"VALUES lists must all be the same length, expected %d columns, found %d",
 		exp, got)
 }

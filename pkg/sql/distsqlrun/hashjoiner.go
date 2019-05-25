@@ -25,6 +25,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/util/humanizeutil"
 	"github.com/cockroachdb/cockroach/pkg/util/log"
 	"github.com/cockroachdb/cockroach/pkg/util/mon"
+	"github.com/cockroachdb/cockroach/pkg/util/pgcode"
 	"github.com/cockroachdb/cockroach/pkg/util/tracing"
 	opentracing "github.com/opentracing/opentracing-go"
 )
@@ -337,7 +338,7 @@ func (h *hashJoiner) build() (hashJoinerState, sqlbase.EncDatumRow, *ProducerMet
 			h.storedSide = side
 			if sqlbase.IsOutOfMemoryError(err) {
 				if !h.useTempStorage {
-					err = pgerror.Wrapf(err, pgerror.CodeOutOfMemoryError,
+					err = pgerror.Wrapf(err, pgcode.OutOfMemory,
 						"error while attempting hashJoiner disk spill: temp storage disabled")
 				} else {
 					if err := h.initStoredRows(); err != nil {
@@ -348,7 +349,7 @@ func (h *hashJoiner) build() (hashJoinerState, sqlbase.EncDatumRow, *ProducerMet
 					if addErr == nil {
 						return hjConsumingStoredSide, nil, nil
 					}
-					err = pgerror.Wrapf(addErr, pgerror.CodeOutOfMemoryError, "while spilling: %v", err)
+					err = pgerror.Wrapf(addErr, pgcode.OutOfMemory, "while spilling: %v", err)
 				}
 			}
 			h.MoveToDraining(err)

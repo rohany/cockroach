@@ -23,6 +23,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 	"github.com/cockroachdb/cockroach/pkg/sql/types"
 	"github.com/cockroachdb/cockroach/pkg/util"
+	"github.com/cockroachdb/cockroach/pkg/util/pgcode"
 )
 
 // CheckHelper validates check constraints on rows, on INSERT and UPDATE.
@@ -197,7 +198,7 @@ func (c *CheckHelper) CheckEval(ctx *tree.EvalContext) error {
 			return err
 		} else if !res && d != tree.DNull {
 			// Failed to satisfy CHECK constraint.
-			return pgerror.Newf(pgerror.CodeCheckViolationError,
+			return pgerror.Newf(pgcode.CheckViolation,
 				"failed to satisfy CHECK constraint (%s)", expr)
 		}
 	}
@@ -222,7 +223,7 @@ func (c *CheckHelper) CheckInput(checkVals tree.Datums) error {
 			return err
 		} else if !res && checkVals[i] != tree.DNull {
 			// Failed to satisfy CHECK constraint.
-			return pgerror.Newf(pgerror.CodeCheckViolationError,
+			return pgerror.Newf(pgcode.CheckViolation,
 				"failed to satisfy CHECK constraint (%s)", check.Expr)
 		}
 	}

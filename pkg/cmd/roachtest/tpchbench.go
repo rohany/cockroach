@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
+	"github.com/cockroachdb/cockroach/pkg/util/pgcode"
 	"github.com/cockroachdb/cockroach/pkg/workload/querybench"
 	"github.com/lib/pq"
 )
@@ -135,7 +135,7 @@ func loadTPCHBench(
 		if err := db.QueryRowContext(
 			ctx, `SELECT count(*) FROM tpch.supplier`,
 		).Scan(&supplierCardinality); err != nil {
-			if pqErr, ok := err.(*pq.Error); !(ok && pqErr.Code == pgerror.CodeUndefinedTableError) {
+			if pqErr, ok := err.(*pq.Error); !(ok && pqErr.Code == pgcode.UndefinedTable) {
 				return err
 			}
 			// Table does not exist. Set cardinality to 0.
@@ -159,7 +159,7 @@ func loadTPCHBench(
 		c.Start(ctx, t, roachNodes)
 		m.ResetDeaths()
 	} else if pqErr, ok := err.(*pq.Error); !ok ||
-		string(pqErr.Code) != pgerror.CodeInvalidCatalogNameError {
+		string(pqErr.Code) != pgcode.InvalidCatalogName {
 		return err
 	}
 
