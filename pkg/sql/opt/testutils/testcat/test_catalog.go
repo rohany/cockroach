@@ -29,7 +29,6 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 	"github.com/cockroachdb/cockroach/pkg/sql/stats"
 	"github.com/cockroachdb/cockroach/pkg/sql/types"
-	"github.com/cockroachdb/cockroach/pkg/util/log"
 	"github.com/cockroachdb/cockroach/pkg/util/treeprinter"
 )
 
@@ -314,7 +313,7 @@ func (tc *Catalog) ExecuteDDL(sql string) (string, error) {
 	switch stmt.AST.StatementType() {
 	case tree.DDL, tree.RowsAffected:
 	default:
-		return "", errors.AssertionFailedf("statement type is not DDL or RowsAffected: %v", log.Safe(stmt.AST.StatementType()))
+		return "", errors.AssertionFailedf("statement type is not DDL or RowsAffected: %v", errors.Safe(stmt.AST.StatementType()))
 	}
 
 	switch stmt := stmt.AST.(type) {

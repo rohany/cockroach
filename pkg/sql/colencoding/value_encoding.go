@@ -19,7 +19,6 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/exec/coldata"
 	"github.com/cockroachdb/cockroach/pkg/sql/types"
 	"github.com/cockroachdb/cockroach/pkg/util/encoding"
-	"github.com/cockroachdb/cockroach/pkg/util/log"
 )
 
 // DecodeTableValueToCol decodes a value encoded by EncodeTableValue, writing
@@ -90,7 +89,7 @@ func decodeUntaggedDatumToCol(vec coldata.Vec, idx uint16, t *types.T, buf []byt
 		}
 	default:
 		return buf, errors.AssertionFailedf(
-			"couldn't decode type: %s", log.Safe(t))
+			"couldn't decode type: %s", errors.Safe(t))
 	}
 	return buf, err
 }

@@ -1146,7 +1146,7 @@ func (desc *TableDescriptor) validateCrossReferences(ctx context.Context, txn *c
 			return err
 		}
 		if !res.Exists() {
-			return errors.AssertionFailedf("parentID %d does not exist", log.Safe(desc.ParentID))
+			return errors.AssertionFailedf("parentID %d does not exist", errors.Safe(desc.ParentID))
 		}
 	}
 
@@ -1167,12 +1167,12 @@ func (desc *TableDescriptor) validateCrossReferences(ctx context.Context, txn *c
 		targetTable, err := getTable(tableID)
 		if err != nil {
 			return nil, nil, errors.NewAssertionErrorWithWrappedErrf(err,
-				"missing table=%d index=%d", log.Safe(tableID), log.Safe(indexID))
+				"missing table=%d index=%d", errors.Safe(tableID), errors.Safe(indexID))
 		}
 		targetIndex, err := targetTable.FindIndexByID(indexID)
 		if err != nil {
 			return nil, nil, errors.NewAssertionErrorWithWrappedErrf(err,
-				"missing table=%s index=%d", targetTable.Name, log.Safe(indexID))
+				"missing table=%s index=%d", targetTable.Name, errors.Safe(indexID))
 		}
 		return targetTable, targetIndex, nil
 	}
@@ -1206,12 +1206,12 @@ func (desc *TableDescriptor) validateCrossReferences(ctx context.Context, txn *c
 			targetTable, err := getTable(backref.Table)
 			if err != nil {
 				return errors.NewAssertionErrorWithWrappedErrf(err, "invalid fk backreference table=%d index=%d",
-					backref.Table, log.Safe(backref.Index))
+					backref.Table, errors.Safe(backref.Index))
 			}
 			targetIndex, err := targetTable.FindIndexByID(backref.Index)
 			if err != nil {
 				return errors.NewAssertionErrorWithWrappedErrf(err, "invalid fk backreference table=%s index=%d",
-					targetTable.Name, log.Safe(backref.Index))
+					targetTable.Name, errors.Safe(backref.Index))
 			}
 			if fk := targetIndex.ForeignKey; fk.Table != desc.ID || fk.Index != index.ID {
 				return errors.AssertionFailedf("broken fk backward reference from %q@%q to %q@%q",
@@ -1288,7 +1288,7 @@ func (desc *TableDescriptor) ValidateTable(st *cluster.Settings) error {
 		return err
 	}
 	if desc.ID == 0 {
-		return errors.AssertionFailedf("invalid table ID %d", log.Safe(desc.ID))
+		return errors.AssertionFailedf("invalid table ID %d", errors.Safe(desc.ID))
 	}
 
 	// TODO(dt, nathan): virtual descs don't validate (missing privs, PK, etc).
@@ -1303,7 +1303,7 @@ func (desc *TableDescriptor) ValidateTable(st *cluster.Settings) error {
 	// ParentID is the ID of the database holding this table.
 	// It is often < ID, except when a table gets moved across databases.
 	if desc.ParentID == 0 {
-		return errors.AssertionFailedf("invalid parent ID %d", log.Safe(desc.ParentID))
+		return errors.AssertionFailedf("invalid parent ID %d", errors.Safe(desc.ParentID))
 	}
 
 	// We maintain forward compatibility, so if you see this error message with a
@@ -1319,8 +1319,8 @@ func (desc *TableDescriptor) ValidateTable(st *cluster.Settings) error {
 		// - Change this check to only allow InterleavedFormatVersion
 		return errors.AssertionFailedf(
 			"table %q is encoded using using version %d, but this client only supports version %d and %d",
-			desc.Name, log.Safe(desc.GetFormatVersion()),
-			log.Safe(FamilyFormatVersion), log.Safe(InterleavedFormatVersion))
+			desc.Name, errors.Safe(desc.GetFormatVersion()),
+			errors.Safe(FamilyFormatVersion), errors.Safe(InterleavedFormatVersion))
 	}
 
 	if len(desc.Columns) == 0 {
@@ -1338,7 +1338,7 @@ func (desc *TableDescriptor) ValidateTable(st *cluster.Settings) error {
 			return err
 		}
 		if column.ID == 0 {
-			return errors.AssertionFailedf("invalid column ID %d", log.Safe(column.ID))
+			return errors.AssertionFailedf("invalid column ID %d", errors.Safe(column.ID))
 		}
 
 		if _, ok := columnNames[column.Name]; ok {
@@ -1359,7 +1359,7 @@ func (desc *TableDescriptor) ValidateTable(st *cluster.Settings) error {
 
 		if column.ID >= desc.NextColumnID {
 			return errors.AssertionFailedf("column %q invalid ID (%d) >= next column ID (%d)",
-				column.Name, log.Safe(column.ID), log.Safe(desc.NextColumnID))
+				column.Name, errors.Safe(column.ID), errors.Safe(desc.NextColumnID))
 		}
 	}
 
@@ -1382,7 +1382,7 @@ func (desc *TableDescriptor) ValidateTable(st *cluster.Settings) error {
 			if unSetEnums {
 				return errors.AssertionFailedf(
 					"mutation in state %s, direction %s, col %q, id %v",
-					log.Safe(m.State), log.Safe(m.Direction), col.Name, log.Safe(col.ID))
+					errors.Safe(m.State), errors.Safe(m.Direction), col.Name, errors.Safe(col.ID))
 			}
 			columnIDs[col.ID] = col.Name
 		case *DescriptorMutation_Index:
@@ -1390,18 +1390,18 @@ func (desc *TableDescriptor) ValidateTable(st *cluster.Settings) error {
 				idx := desc.Index
 				return errors.AssertionFailedf(
 					"mutation in state %s, direction %s, index %s, id %v",
-					log.Safe(m.State), log.Safe(m.Direction), idx.Name, log.Safe(idx.ID))
+					errors.Safe(m.State), errors.Safe(m.Direction), idx.Name, errors.Safe(idx.ID))
 			}
 		case *DescriptorMutation_Constraint:
 			if unSetEnums {
 				return errors.AssertionFailedf(
 					"mutation in state %s, direction %s, constraint %v",
-					log.Safe(m.State), log.Safe(m.Direction), desc.Constraint.Name)
+					errors.Safe(m.State), errors.Safe(m.Direction), desc.Constraint.Name)
 			}
 		default:
 			return errors.AssertionFailedf(
 				"mutation in state %s, direction %s, and no column/index descriptor",
-				log.Safe(m.State), log.Safe(m.Direction))
+				errors.Safe(m.State), errors.Safe(m.Direction))
 		}
 	}
 

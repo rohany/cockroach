@@ -308,7 +308,7 @@ func (sc *SchemaChanger) findTableWithLease(
 		return nil, err
 	}
 	if tableDesc.Lease == nil {
-		return nil, errors.AssertionFailedf("no lease present for tableID: %d", log.Safe(sc.tableID))
+		return nil, errors.AssertionFailedf("no lease present for tableID: %d", errors.Safe(sc.tableID))
 	}
 	if *tableDesc.Lease != lease {
 		log.Errorf(ctx, "table: %d has lease: %v, expected: %v", sc.tableID, tableDesc.Lease, lease)
@@ -418,7 +418,7 @@ func (sc *SchemaChanger) DropTableDesc(
 					return nil
 				}); err != nil {
 				return errors.NewAssertionErrorWithWrappedErrf(err,
-					"failed to update job %d", log.Safe(tableDesc.GetDropJobID()))
+					"failed to update job %d", errors.Safe(tableDesc.GetDropJobID()))
 			}
 		}
 		return txn.Run(ctx, b)
@@ -632,7 +632,7 @@ func (sc *SchemaChanger) maybeGCMutations(
 		}
 	}
 	if !found {
-		return errors.AssertionFailedf("no GC mutation for index %d", log.Safe(sc.dropIndexTimes[0].indexID))
+		return errors.AssertionFailedf("no GC mutation for index %d", errors.Safe(sc.dropIndexTimes[0].indexID))
 	}
 
 	// Check if the deadline for GC'd dropped index expired because
@@ -706,7 +706,7 @@ func (sc *SchemaChanger) updateDropTableJob(
 
 	schemaDetails, ok := job.Details().(jobspb.SchemaChangeDetails)
 	if !ok {
-		return errors.AssertionFailedf("unexpected details for job %d: %T", log.Safe(*job.ID()), job.Details())
+		return errors.AssertionFailedf("unexpected details for job %d: %T", errors.Safe(*job.ID()), job.Details())
 	}
 
 	lowestStatus := jobspb.Status_DONE
@@ -733,7 +733,7 @@ func (sc *SchemaChanger) updateDropTableJob(
 			return onSuccess(ctx, txn, job)
 		})
 	default:
-		return errors.AssertionFailedf("unexpected dropped table status %d", log.Safe(lowestStatus))
+		return errors.AssertionFailedf("unexpected dropped table status %d", errors.Safe(lowestStatus))
 	}
 
 	if err := job.WithTxn(txn).SetDetails(ctx, schemaDetails); err != nil {
@@ -959,7 +959,7 @@ func (sc *SchemaChanger) initJobRunningStatus(ctx context.Context) error {
 					return runStatus, nil
 				}); err != nil {
 				return errors.NewAssertionErrorWithWrappedErrf(err,
-					"failed to update running status of job %d", log.Safe(*sc.job.ID()))
+					"failed to update running status of job %d", errors.Safe(*sc.job.ID()))
 			}
 		}
 		return nil
@@ -1062,7 +1062,7 @@ func (sc *SchemaChanger) RunStateMachineBeforeBackfill(ctx context.Context) erro
 				return runStatus, nil
 			}); err != nil {
 				return errors.NewAssertionErrorWithWrappedErrf(err,
-					"failed to update running status of job %d", log.Safe(*sc.job.ID()))
+					"failed to update running status of job %d", errors.Safe(*sc.job.ID()))
 			}
 		}
 		return nil
@@ -1153,14 +1153,14 @@ func (sc *SchemaChanger) done(ctx context.Context) (*sqlbase.ImmutableTableDescr
 		if jobSucceeded {
 			if err := sc.job.WithTxn(txn).Succeeded(ctx, jobs.NoopFn); err != nil {
 				return errors.NewAssertionErrorWithWrappedErrf(err,
-					"failed to mark job %d as successful", log.Safe(*sc.job.ID()))
+					"failed to mark job %d as successful", errors.Safe(*sc.job.ID()))
 			}
 		} else {
 			if err := sc.job.WithTxn(txn).RunningStatus(ctx, func(ctx context.Context, details jobspb.Details) (jobs.RunningStatus, error) {
 				return RunningStatusWaitingGC, nil
 			}); err != nil {
 				return errors.NewAssertionErrorWithWrappedErrf(err,
-					"failed to update running status of job %d", log.Safe(*sc.job.ID()))
+					"failed to update running status of job %d", errors.Safe(*sc.job.ID()))
 			}
 		}
 
@@ -1465,7 +1465,7 @@ func (sc *SchemaChanger) createRollbackJob(
 		}
 	}
 	// Cannot get here.
-	return nil, errors.AssertionFailedf("no job found for table %d mutation %d", log.Safe(sc.tableID), log.Safe(sc.mutationID))
+	return nil, errors.AssertionFailedf("no job found for table %d mutation %d", errors.Safe(sc.tableID), errors.Safe(sc.mutationID))
 }
 
 func (sc *SchemaChanger) maybeDropValidatingConstraint(
@@ -1503,7 +1503,7 @@ func (sc *SchemaChanger) maybeDropValidatingConstraint(
 			}
 		}
 	default:
-		return errors.AssertionFailedf("unsupported constraint type: %d", log.Safe(constraint.ConstraintType))
+		return errors.AssertionFailedf("unsupported constraint type: %d", errors.Safe(constraint.ConstraintType))
 	}
 	return nil
 }
