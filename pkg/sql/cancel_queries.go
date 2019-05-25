@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/server/serverpb"
 	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
@@ -94,8 +95,7 @@ func (n *cancelQueriesNode) Next(params runParams) (bool, error) {
 	}
 
 	if !response.Canceled && !n.ifExists {
-		return false, pgerror.Newf(pgerror.CodeDataExceptionError,
-			"could not cancel query %s: %s", queryID, response.Error)
+		return false, errors.Newf("could not cancel query %s: %s", queryID, response.Error)
 	}
 
 	return true, nil

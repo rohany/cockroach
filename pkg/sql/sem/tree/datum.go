@@ -16,6 +16,7 @@ package tree
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -3113,14 +3114,13 @@ func (d *DArray) Format(ctx *FmtCtx) {
 
 const maxArrayLength = math.MaxInt32
 
-var arrayTooLongError = pgerror.Newf(
-	pgerror.CodeDataExceptionError, "ARRAYs can be at most 2^31-1 elements long")
+var errArrayTooLongError = errors.New("ARRAYs can be at most 2^31-1 elements long")
 
 // Validate checks that the given array is valid,
 // for example, that it's not too big.
 func (d *DArray) Validate() error {
 	if d.Len() > maxArrayLength {
-		return arrayTooLongError
+		return errors.WithStack(errArrayTooLongError)
 	}
 	return nil
 }
@@ -3150,7 +3150,7 @@ func (d *DArray) Append(v Datum) error {
 			v.ResolvedType())
 	}
 	if d.Len() >= maxArrayLength {
-		return arrayTooLongError
+		return errors.WithStack(errArrayTooLongError)
 	}
 	if d.ParamTyp.Family() == types.ArrayFamily {
 		if v == DNull {

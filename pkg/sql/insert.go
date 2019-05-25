@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
 	"github.com/cockroachdb/cockroach/pkg/sql/privilege"
 	"github.com/cockroachdb/cockroach/pkg/sql/row"
@@ -663,8 +664,7 @@ func GenerateInsertRow(
 			// available.
 			d, err := computeExprs[i].Eval(evalCtx)
 			if err != nil {
-				return nil, pgerror.Wrapf(err, pgerror.CodeDataExceptionError,
-					"computed column %s", tree.ErrString((*tree.Name)(&computedCols[i].Name)))
+				return nil, errors.Wrapf(err, "computed column %s", tree.ErrString((*tree.Name)(&computedCols[i].Name)))
 			}
 			rowVals[rowContainerForComputedVals.Mapping[computedCols[i].ID]] = d
 		}
