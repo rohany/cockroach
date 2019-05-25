@@ -17,12 +17,12 @@ package xform
 import (
 	"math/rand"
 
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt/memo"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt/norm"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt/ordering"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt/props/physical"
-	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 	"github.com/cockroachdb/cockroach/pkg/util"
 	"github.com/cockroachdb/cockroach/pkg/util/log"
@@ -199,7 +199,7 @@ func (o *Optimizer) Optimize() (_ opt.Expr, err error) {
 	}()
 
 	if o.mem.IsOptimized() {
-		return nil, pgerror.AssertionFailedf("cannot optimize a memo multiple times")
+		return nil, errors.AssertionFailedf("cannot optimize a memo multiple times")
 	}
 
 	// Optimize the root expression according to the properties required of it.
@@ -218,7 +218,7 @@ func (o *Optimizer) Optimize() (_ opt.Expr, err error) {
 
 	// Validate there are no dangling references.
 	if !root.Relational().OuterCols.Empty() {
-		return nil, pgerror.AssertionFailedf(
+		return nil, errors.AssertionFailedf(
 			"top-level relational expression cannot have outer columns: %s",
 			log.Safe(root.Relational().OuterCols),
 		)
@@ -249,7 +249,7 @@ func (o *Optimizer) optimizeExpr(
 		return o.optimizeScalarExpr(t)
 
 	default:
-		panic(pgerror.AssertionFailedf("unhandled child: %+v", e))
+		panic(errors.AssertionFailedf("unhandled child: %+v", e))
 	}
 }
 
@@ -569,7 +569,7 @@ func (o *Optimizer) enforceProps(
 	} else {
 		// No remaining properties, so no more enforcers.
 		if inner.Defined() {
-			panic(pgerror.AssertionFailedf("unhandled physical property: %v", inner))
+			panic(errors.AssertionFailedf("unhandled physical property: %v", inner))
 		}
 		return true
 	}
@@ -712,7 +712,7 @@ func (o *Optimizer) ensureOptState(grp memo.RelExpr, required *physical.Required
 func (o *Optimizer) optimizeRootWithProps() {
 	root, ok := o.mem.RootExpr().(memo.RelExpr)
 	if !ok {
-		panic(pgerror.AssertionFailedf("Optimize can only be called on relational root expressions"))
+		panic(errors.AssertionFailedf("Optimize can only be called on relational root expressions"))
 	}
 	rootProps := o.mem.RootProps()
 
@@ -737,7 +737,7 @@ func (o *Optimizer) optimizeRootWithProps() {
 	// or presentation properties.
 	neededCols := rootProps.ColSet()
 	if !neededCols.SubsetOf(root.Relational().OutputCols) {
-		panic(pgerror.AssertionFailedf(
+		panic(errors.AssertionFailedf(
 			"columns required of root %s must be subset of output columns %s",
 			neededCols,
 			root.Relational().OutputCols,
@@ -823,10 +823,10 @@ func (os *groupState) isMemberFullyOptimized(ord int) bool {
 // made.
 func (os *groupState) markMemberAsFullyOptimized(ord int) {
 	if os.fullyOptimized {
-		panic(pgerror.AssertionFailedf("best expression is already fully optimized"))
+		panic(errors.AssertionFailedf("best expression is already fully optimized"))
 	}
 	if os.isMemberFullyOptimized(ord) {
-		panic(pgerror.AssertionFailedf("memo expression is already fully optimized for required physical properties"))
+		panic(errors.AssertionFailedf("memo expression is already fully optimized for required physical properties"))
 	}
 	os.fullyOptimizedExprs.Add(ord)
 }

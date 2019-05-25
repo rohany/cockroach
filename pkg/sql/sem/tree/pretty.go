@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/sql/types"
 	"github.com/cockroachdb/cockroach/pkg/util/log"
 	"github.com/cockroachdb/cockroach/pkg/util/pretty"
@@ -762,7 +762,7 @@ func (node *WindowFrameBound) doc(p *PrettyCfg) pretty.Doc {
 	case UnboundedFollowing:
 		return pretty.Keyword("UNBOUNDED FOLLOWING")
 	default:
-		panic(pgerror.AssertionFailedf("unexpected type %d", log.Safe(node.BoundType)))
+		panic(errors.AssertionFailedf("unexpected type %d", log.Safe(node.BoundType)))
 	}
 }
 
@@ -1053,7 +1053,7 @@ func (p *PrettyCfg) docReturning(node ReturningClause) pretty.TableRow {
 	case *ReturningExprs:
 		return p.row("RETURNING", p.Doc((*SelectExprs)(r)))
 	default:
-		panic(pgerror.AssertionFailedf("unhandled case: %T", node))
+		panic(errors.AssertionFailedf("unhandled case: %T", node))
 	}
 }
 

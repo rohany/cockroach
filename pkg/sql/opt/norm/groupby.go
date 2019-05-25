@@ -15,11 +15,11 @@
 package norm
 
 import (
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt/memo"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt/props"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt/props/physical"
-	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
 	"github.com/cockroachdb/cockroach/pkg/util/log"
 )
 
@@ -127,7 +127,7 @@ func (c *CustomFuncs) makeAggCols(
 			outAgg = c.f.ConstructFirstAgg(varExpr)
 
 		default:
-			panic(pgerror.AssertionFailedf("unrecognized aggregate operator type: %v", log.Safe(aggOp)))
+			panic(errors.AssertionFailedf("unrecognized aggregate operator type: %v", log.Safe(aggOp)))
 		}
 
 		outAggs[i].Agg = outAgg
@@ -192,7 +192,7 @@ func (c *CustomFuncs) replaceAggInputVar(agg opt.ScalarExpr, v opt.ScalarExpr) o
 	case 2:
 		return c.f.DynamicConstruct(agg.Op(), v, agg.Child(1)).(opt.ScalarExpr)
 	default:
-		panic(pgerror.AssertionFailedf("unhandled number of aggregate children"))
+		panic(errors.AssertionFailedf("unhandled number of aggregate children"))
 	}
 }
 

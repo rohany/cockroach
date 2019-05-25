@@ -17,7 +17,7 @@ package tree
 import (
 	"fmt"
 
-	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/sql/sessiondata"
 	"github.com/cockroachdb/cockroach/pkg/util/log"
 )
@@ -60,7 +60,7 @@ func (fn *ResolvableFunctionReference) Resolve(
 		fn.FunctionReference = fd
 		return fd, nil
 	default:
-		return nil, pgerror.AssertionFailedf("unknown function name type: %+v (%T)",
+		return nil, errors.AssertionFailedf("unknown function name type: %+v (%T)",
 			fn.FunctionReference, fn.FunctionReference,
 		)
 	}
@@ -71,7 +71,7 @@ func (fn *ResolvableFunctionReference) Resolve(
 func WrapFunction(n string) ResolvableFunctionReference {
 	fd, ok := FunDefs[n]
 	if !ok {
-		panic(pgerror.AssertionFailedf("function %s() not defined", log.Safe(n)))
+		panic(errors.AssertionFailedf("function %s() not defined", log.Safe(n)))
 	}
 	return ResolvableFunctionReference{fd}
 }

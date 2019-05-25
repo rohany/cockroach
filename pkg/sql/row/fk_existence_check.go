@@ -17,6 +17,7 @@ package row
 import (
 	"context"
 
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 	"github.com/cockroachdb/cockroach/pkg/sql/sqlbase"
@@ -46,7 +47,7 @@ outer:
 			for _, colID := range fk.searchIdx.ColumnIDs[:fk.prefixLen] {
 				found, ok := fk.ids[colID]
 				if !ok {
-					return pgerror.AssertionFailedf("fk ids (%v) missing column id %d", fk.ids, colID)
+					return errors.AssertionFailedf("fk ids (%v) missing column id %d", fk.ids, colID)
 				}
 				if mutatedRow[found] == tree.DNull {
 					continue outer
@@ -61,7 +62,7 @@ outer:
 			for _, colID := range fk.searchIdx.ColumnIDs[:fk.prefixLen] {
 				found, ok := fk.ids[colID]
 				if !ok {
-					return pgerror.AssertionFailedf("fk ids (%v) missing column id %d", fk.ids, colID)
+					return errors.AssertionFailedf("fk ids (%v) missing column id %d", fk.ids, colID)
 				}
 				if mutatedRow[found] == tree.DNull {
 					nulls = true
@@ -88,7 +89,7 @@ outer:
 			return pgerror.UnimplementedWithIssue(20305, "MATCH PARTIAL not supported")
 
 		default:
-			return pgerror.AssertionFailedf("unknown composite key match type: %v", fk.ref.Match)
+			return errors.AssertionFailedf("unknown composite key match type: %v", fk.ref.Match)
 		}
 	}
 	return nil

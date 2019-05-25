@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/server/telemetry"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt/memo"
@@ -434,11 +435,11 @@ func (b *Builder) buildFunction(
 	}
 
 	if isAggregate(def) {
-		panic(pgerror.AssertionFailedf("aggregate function should have been replaced"))
+		panic(errors.AssertionFailedf("aggregate function should have been replaced"))
 	}
 
 	if isWindow(def) {
-		panic(pgerror.AssertionFailedf("window function should have been replaced"))
+		panic(errors.AssertionFailedf("window function should have been replaced"))
 	}
 
 	args := make(memo.ScalarListExpr, len(f.Exprs))
@@ -621,7 +622,7 @@ func (b *Builder) constructComparison(
 	case tree.JSONSomeExists:
 		return b.factory.ConstructJsonSomeExists(left, right)
 	}
-	panic(pgerror.AssertionFailedf("unhandled comparison operator: %s", log.Safe(cmp)))
+	panic(errors.AssertionFailedf("unhandled comparison operator: %s", log.Safe(cmp)))
 }
 
 func (b *Builder) constructBinary(
@@ -663,7 +664,7 @@ func (b *Builder) constructBinary(
 	case tree.JSONFetchTextPath:
 		return b.factory.ConstructFetchTextPath(left, right)
 	}
-	panic(pgerror.AssertionFailedf("unhandled binary operator: %s", log.Safe(bin)))
+	panic(errors.AssertionFailedf("unhandled binary operator: %s", log.Safe(bin)))
 }
 
 func (b *Builder) constructUnary(
@@ -675,7 +676,7 @@ func (b *Builder) constructUnary(
 	case tree.UnaryComplement:
 		return b.factory.ConstructUnaryComplement(input)
 	}
-	panic(pgerror.AssertionFailedf("unhandled unary operator: %s", log.Safe(un)))
+	panic(errors.AssertionFailedf("unhandled unary operator: %s", log.Safe(un)))
 }
 
 // ScalarBuilder is a specialized variant of Builder that can be used to create

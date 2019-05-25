@@ -15,11 +15,11 @@
 package norm
 
 import (
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt/cat"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt/memo"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt/props"
-	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
 	"github.com/cockroachdb/cockroach/pkg/sql/sqlbase"
 	"github.com/cockroachdb/cockroach/pkg/util"
 	"github.com/cockroachdb/cockroach/pkg/util/log"
@@ -53,7 +53,7 @@ func (c *CustomFuncs) ConstructNonLeftJoin(
 	case opt.FullJoinApplyOp:
 		return c.f.ConstructRightJoinApply(left, right, on, private)
 	}
-	panic(pgerror.AssertionFailedf("unexpected join operator: %v", log.Safe(joinOp)))
+	panic(errors.AssertionFailedf("unexpected join operator: %v", log.Safe(joinOp)))
 }
 
 // ConstructNonRightJoin maps a right join to an inner join and a full join to a
@@ -72,7 +72,7 @@ func (c *CustomFuncs) ConstructNonRightJoin(
 	case opt.FullJoinApplyOp:
 		return c.f.ConstructLeftJoinApply(left, right, on, private)
 	}
-	panic(pgerror.AssertionFailedf("unexpected join operator: %v", log.Safe(joinOp)))
+	panic(errors.AssertionFailedf("unexpected join operator: %v", log.Safe(joinOp)))
 }
 
 // SimplifyNotNullEquality simplifies an expression of the following form:
@@ -106,7 +106,7 @@ func (c *CustomFuncs) SimplifyNotNullEquality(
 			return c.f.ConstructTrue()
 		}
 	}
-	panic(pgerror.AssertionFailedf("invalid ops: %v, %v", testOp, constOp))
+	panic(errors.AssertionFailedf("invalid ops: %v, %v", testOp, constOp))
 }
 
 // CanMapJoinOpFilter returns true if it is possible to map a boolean expression
@@ -198,7 +198,7 @@ func (c *CustomFuncs) MapJoinOpFilter(
 		} else {
 			dstCol, ok := eqCols.Next(0)
 			if !ok {
-				panic(pgerror.AssertionFailedf(
+				panic(errors.AssertionFailedf(
 					"Map called on src that cannot be mapped to dst. src:\n%s\ndst:\n%s",
 					src, dst,
 				))
@@ -444,7 +444,7 @@ func (c *CustomFuncs) JoinFiltersMatchAllLeftRows(
 		fkTable := md.TableByStableID(fkRef.TableID)
 		fkPrefix := int(fkRef.PrefixLen)
 		if fkPrefix <= 0 {
-			panic(pgerror.AssertionFailedf("fkPrefix should always be positive"))
+			panic(errors.AssertionFailedf("fkPrefix should always be positive"))
 		}
 		if fkTable == nil || fkTable.ID() != rightTabMeta.Table.ID() {
 			continue
@@ -463,7 +463,7 @@ func (c *CustomFuncs) JoinFiltersMatchAllLeftRows(
 			}
 		}
 		if !found {
-			panic(pgerror.AssertionFailedf("Foreign key referenced index not found in table"))
+			panic(errors.AssertionFailedf("Foreign key referenced index not found in table"))
 		}
 
 		var leftIndexCols opt.ColSet
@@ -643,7 +643,7 @@ func (c *CustomFuncs) ExtractJoinEquality(
 		}
 	}
 	if leftProj.empty() && rightProj.empty() {
-		panic(pgerror.AssertionFailedf("no equalities to extract"))
+		panic(errors.AssertionFailedf("no equalities to extract"))
 	}
 
 	join := c.f.ConstructJoin(

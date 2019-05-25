@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/internal/client"
 	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
 	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgwirebase"
@@ -489,7 +490,7 @@ func (ex *connExecutor) execDescribe(
 			res.SetPortalOutput(ctx, portal.Stmt.Columns, portal.OutFormats)
 		}
 	default:
-		return retErr(pgerror.AssertionFailedf(
+		return retErr(errors.AssertionFailedf(
 			"unknown describe type: %s", log.Safe(descCmd.Type)))
 	}
 	return nil, nil

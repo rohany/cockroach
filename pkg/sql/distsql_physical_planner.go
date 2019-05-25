@@ -21,6 +21,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/gossip"
 	"github.com/cockroachdb/cockroach/pkg/internal/client"
 	"github.com/cockroachdb/cockroach/pkg/keys"
@@ -44,7 +45,6 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/util/log"
 	"github.com/cockroachdb/cockroach/pkg/util/stop"
 	"github.com/cockroachdb/cockroach/pkg/util/uuid"
-	"github.com/pkg/errors"
 )
 
 // DistSQLPlanner is used to generate distributed plans from logical
@@ -1650,7 +1650,7 @@ func (dsp *DistSQLPlanner) addAggregators(
 				}
 			}
 			if !found {
-				return pgerror.AssertionFailedf("group column ordering contains non-grouping column %d", o.ColIdx)
+				return errors.AssertionFailedf("group column ordering contains non-grouping column %d", o.ColIdx)
 			}
 			if o.Direction == encoding.Descending {
 				ordCols[i].Direction = distsqlpb.Ordering_Column_DESC

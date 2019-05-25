@@ -22,6 +22,7 @@ import (
 	"unsafe"
 
 	"github.com/cockroachdb/apd"
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 	"github.com/cockroachdb/cockroach/pkg/sql/types"
@@ -580,7 +581,7 @@ func (a *avgAggregate) Result() (tree.Datum, error) {
 		_, err := tree.DecimalCtx.Quo(&t.Decimal, &t.Decimal, count)
 		return t, err
 	default:
-		return nil, pgerror.AssertionFailedf("unexpected SUM result type: %s", t)
+		return nil, errors.AssertionFailedf("unexpected SUM result type: %s", t)
 	}
 }
 

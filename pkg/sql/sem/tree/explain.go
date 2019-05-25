@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"strings"
 
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
 	"github.com/cockroachdb/cockroach/pkg/util"
 	"github.com/cockroachdb/cockroach/pkg/util/log"
@@ -101,7 +102,7 @@ func ExplainModeName(mode ExplainMode) (string, error) {
 			return k, nil
 		}
 	}
-	return "", pgerror.AssertionFailedf("no name for explain mode %v", log.Safe(mode))
+	return "", errors.AssertionFailedf("no name for explain mode %v", log.Safe(mode))
 }
 
 // Explain flags.

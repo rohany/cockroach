@@ -36,6 +36,7 @@ import (
 
 	"github.com/cockroachdb/apd"
 	"github.com/cockroachdb/cockroach/pkg/build"
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/internal/client"
 	"github.com/cockroachdb/cockroach/pkg/roachpb"
 	"github.com/cockroachdb/cockroach/pkg/security"
@@ -56,7 +57,6 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/util/timeutil"
 	"github.com/cockroachdb/cockroach/pkg/util/uuid"
 	"github.com/knz/strtime"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -2837,7 +2837,7 @@ may increase either contention or retry errors, or both.`,
 			ReturnType: tree.FixedReturnType(types.Int),
 			Fn: func(ctx *tree.EvalContext, args tree.Datums) (tree.Datum, error) {
 				msg := string(*args[0].(*tree.DString))
-				return nil, pgerror.AssertionFailedf("%s", msg)
+				return nil, errors.AssertionFailedf("%s", msg)
 			},
 			Info: "This function is used only by CockroachDB's developers for testing purposes.",
 		},
@@ -3460,7 +3460,7 @@ var jsonTypeOfImpl = tree.Overload{
 		case json.ObjectJSONType:
 			return jsonObjectDString, nil
 		}
-		return nil, pgerror.AssertionFailedf("unexpected JSON type %d", t)
+		return nil, errors.AssertionFailedf("unexpected JSON type %d", t)
 	},
 	Info: "Returns the type of the outermost JSON value as a text string.",
 }
@@ -3814,7 +3814,7 @@ func feedHash(h hash.Hash, args tree.Datums) (bool, error) {
 		}
 		_, err := h.Write([]byte(buf))
 		if err != nil {
-			return false, pgerror.NewAssertionErrorWithWrappedErrf(err,
+			return false, errors.NewAssertionErrorWithWrappedErrf(err,
 				`"It never returns an error." -- https://golang.org/pkg/hash: %T`, h)
 		}
 	}
@@ -4515,7 +4515,7 @@ func asJSONBuildObjectKey(d tree.Datum) (string, error) {
 		*tree.DTime, *tree.DBitArray:
 		return tree.AsStringWithFlags(d, tree.FmtBareStrings), nil
 	default:
-		return "", pgerror.AssertionFailedf("unexpected type %T for key value", d)
+		return "", errors.AssertionFailedf("unexpected type %T for key value", d)
 	}
 }
 
@@ -4524,7 +4524,7 @@ func asJSONObjectKey(d tree.Datum) (string, error) {
 	case *tree.DString:
 		return string(*t), nil
 	default:
-		return "", pgerror.AssertionFailedf("unexpected type %T for asJSONObjectKey", d)
+		return "", errors.AssertionFailedf("unexpected type %T for asJSONObjectKey", d)
 	}
 }
 

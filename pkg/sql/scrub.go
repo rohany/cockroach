@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
 	"github.com/cockroachdb/cockroach/pkg/sql/rowcontainer"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
@@ -27,7 +28,6 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/types"
 	"github.com/cockroachdb/cockroach/pkg/util/hlc"
 	"github.com/cockroachdb/cockroach/pkg/util/log"
-	"github.com/pkg/errors"
 )
 
 type scrubNode struct {
@@ -118,7 +118,7 @@ func (n *scrubNode) startExec(params runParams) error {
 			return err
 		}
 	default:
-		return pgerror.AssertionFailedf("unexpected SCRUB type received, got: %v", n.n.Typ)
+		return errors.AssertionFailedf("unexpected SCRUB type received, got: %v", n.n.Typ)
 	}
 	return nil
 }

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/server/telemetry"
 	"github.com/cockroachdb/cockroach/pkg/sql/lex"
 	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
@@ -145,7 +146,7 @@ func (ta typeAnnotation) ResolvedType() *types.T {
 
 func (ta typeAnnotation) assertTyped() {
 	if ta.typ == nil {
-		panic(pgerror.AssertionFailedf(
+		panic(errors.AssertionFailedf(
 			"ReturnType called on TypedExpr with empty typeAnnotation. " +
 				"Was the underlying Expr type-checked before asserting a type of TypedExpr?"))
 	}
@@ -524,7 +525,7 @@ func (node *ComparisonExpr) memoizeFn() {
 
 	fn, ok := CmpOps[fOp].lookupImpl(leftRet, rightRet)
 	if !ok {
-		panic(pgerror.AssertionFailedf("lookup for ComparisonExpr %s's CmpOp failed",
+		panic(errors.AssertionFailedf("lookup for ComparisonExpr %s's CmpOp failed",
 			AsStringWithFlags(node, FmtShowTypes)))
 	}
 	node.fn = fn
@@ -1122,7 +1123,7 @@ func (node *BinaryExpr) memoizeFn() {
 	leftRet, rightRet := node.Left.(TypedExpr).ResolvedType(), node.Right.(TypedExpr).ResolvedType()
 	fn, ok := BinOps[node.Operator].lookupImpl(leftRet, rightRet)
 	if !ok {
-		panic(pgerror.AssertionFailedf("lookup for BinaryExpr %s's BinOp failed",
+		panic(errors.AssertionFailedf("lookup for BinaryExpr %s's BinOp failed",
 			AsStringWithFlags(node, FmtShowTypes)))
 	}
 	node.fn = fn
@@ -1223,7 +1224,7 @@ func NewTypedUnaryExpr(op UnaryOperator, expr TypedExpr, typ *types.T) *UnaryExp
 			return node
 		}
 	}
-	panic(pgerror.AssertionFailedf("invalid TypedExpr with unary op %d: %s", op, expr))
+	panic(errors.AssertionFailedf("invalid TypedExpr with unary op %d: %s", op, expr))
 }
 
 // FuncExpr represents a function call.

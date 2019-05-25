@@ -17,6 +17,7 @@ package row
 import (
 	"context"
 
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/internal/client"
 	"github.com/cockroachdb/cockroach/pkg/roachpb"
 	"github.com/cockroachdb/cockroach/pkg/sql/parser"
@@ -59,7 +60,7 @@ func makeDeleteCascader(
 	alloc *sqlbase.DatumAlloc,
 ) (*cascader, error) {
 	if evalCtx == nil {
-		return nil, pgerror.AssertionFailedf("evalContext is nil")
+		return nil, errors.AssertionFailedf("evalContext is nil")
 	}
 	var required bool
 Outer:
@@ -67,7 +68,7 @@ Outer:
 		for _, ref := range referencedIndex.ReferencedBy {
 			referencingTable, ok := tablesByID[ref.Table]
 			if !ok {
-				return nil, pgerror.AssertionFailedf("could not find table:%d in table descriptor map", ref.Table)
+				return nil, errors.AssertionFailedf("could not find table:%d in table descriptor map", ref.Table)
 			}
 			if referencingTable.IsAdding {
 				// We can assume that a table being added but not yet public is empty,
@@ -116,7 +117,7 @@ func makeUpdateCascader(
 	alloc *sqlbase.DatumAlloc,
 ) (*cascader, error) {
 	if evalCtx == nil {
-		return nil, pgerror.AssertionFailedf("evalContext is nil")
+		return nil, errors.AssertionFailedf("evalContext is nil")
 	}
 	var required bool
 	colIDs := make(map[sqlbase.ColumnID]struct{})
@@ -138,7 +139,7 @@ Outer:
 		for _, ref := range referencedIndex.ReferencedBy {
 			referencingTable, ok := tablesByID[ref.Table]
 			if !ok {
-				return nil, pgerror.AssertionFailedf("could not find table:%d in table descriptor map", ref.Table)
+				return nil, errors.AssertionFailedf("could not find table:%d in table descriptor map", ref.Table)
 			}
 			if referencingTable.IsAdding {
 				// We can assume that a table being added but not yet public is empty,
@@ -235,7 +236,7 @@ func spanForIndexValues(
 		return roachpb.Span{}, pgerror.UnimplementedWithIssue(20305, "MATCH PARTIAL not supported")
 
 	default:
-		return roachpb.Span{}, pgerror.AssertionFailedf("unknown composite key match type: %v", match)
+		return roachpb.Span{}, errors.AssertionFailedf("unknown composite key match type: %v", match)
 	}
 	span, _, err := sqlbase.EncodePartialIndexSpan(table.TableDesc(), index, prefixLen, indexColIDs, values, keyPrefix)
 	if err != nil {
@@ -402,7 +403,7 @@ func (c *cascader) addRowDeleter(
 	if rowDeleter, exists := c.rowDeleters[table.ID]; exists {
 		rowFetcher, existsFetcher := c.deleterRowFetchers[table.ID]
 		if !existsFetcher {
-			return Deleter{}, Fetcher{}, pgerror.AssertionFailedf("no corresponding row fetcher for the row deleter for table: (%d)%s",
+			return Deleter{}, Fetcher{}, errors.AssertionFailedf("no corresponding row fetcher for the row deleter for table: (%d)%s",
 				table.ID, table.Name,
 			)
 		}
@@ -461,7 +462,7 @@ func (c *cascader) addRowUpdater(
 	if existsUpdater {
 		rowFetcher, existsFetcher := c.updaterRowFetchers[table.ID]
 		if !existsFetcher {
-			return Updater{}, Fetcher{}, pgerror.AssertionFailedf("no corresponding row fetcher for the row updater for table: (%d)%s",
+			return Updater{}, Fetcher{}, errors.AssertionFailedf("no corresponding row fetcher for the row updater for table: (%d)%s",
 				table.ID, table.Name,
 			)
 		}
@@ -880,7 +881,7 @@ func (c *cascader) updateRows(
 							updateRow[rowIndex] = rowToUpdate[fetchRowIndex]
 							continue
 						}
-						return nil, nil, nil, 0, pgerror.AssertionFailedf("could find find colID %d in either updated columns or the fetched row",
+						return nil, nil, nil, 0, errors.AssertionFailedf("could find find colID %d in either updated columns or the fetched row",
 							colID,
 						)
 					}
@@ -897,7 +898,7 @@ func (c *cascader) updateRows(
 							updateRow[rowIndex] = rowToUpdate[fetchRowIndex]
 							continue
 						}
-						return nil, nil, nil, 0, pgerror.AssertionFailedf("could find find colID %d in either the index columns or the fetched row",
+						return nil, nil, nil, 0, errors.AssertionFailedf("could find find colID %d in either the index columns or the fetched row",
 							colID,
 						)
 					}
@@ -1038,7 +1039,7 @@ func (c *cascader) cascadeAll(
 			for _, ref := range referencedIndex.ReferencedBy {
 				referencingTable, ok := c.fkTables[ref.Table]
 				if !ok {
-					return pgerror.AssertionFailedf("could not find table:%d in table descriptor map", ref.Table)
+					return errors.AssertionFailedf("could not find table:%d in table descriptor map", ref.Table)
 				}
 				if referencingTable.IsAdding {
 					// We can assume that a table being added but not yet public is empty,
@@ -1152,7 +1153,7 @@ func (c *cascader) cascadeAll(
 		}
 		rowDeleter, exists := c.rowDeleters[tableID]
 		if !exists {
-			return pgerror.AssertionFailedf("could not find row deleter for table %d", tableID)
+			return errors.AssertionFailedf("could not find row deleter for table %d", tableID)
 		}
 		for deletedRows.Len() > 0 {
 			if err := rowDeleter.Fks.addAllIdxChecks(ctx, deletedRows.At(0), traceKV); err != nil {
@@ -1175,7 +1176,7 @@ func (c *cascader) cascadeAll(
 		// Fetch the original and updated rows for the updater.
 		originalRows, originalRowsExists := c.originalRows[tableID]
 		if !originalRowsExists {
-			return pgerror.AssertionFailedf("could not find original rows for table %d", tableID)
+			return errors.AssertionFailedf("could not find original rows for table %d", tableID)
 		}
 		totalRows := originalRows.Len()
 		if totalRows == 0 {
@@ -1184,11 +1185,11 @@ func (c *cascader) cascadeAll(
 
 		updatedRows, updatedRowsExists := c.updatedRows[tableID]
 		if !updatedRowsExists {
-			return pgerror.AssertionFailedf("could not find updated rows for table %d", tableID)
+			return errors.AssertionFailedf("could not find updated rows for table %d", tableID)
 		}
 
 		if totalRows != updatedRows.Len() {
-			return pgerror.AssertionFailedf("original rows length:%d not equal to updated rows length:%d for table %d",
+			return errors.AssertionFailedf("original rows length:%d not equal to updated rows length:%d for table %d",
 				totalRows, updatedRows.Len(), tableID,
 			)
 		}

@@ -15,8 +15,8 @@
 package optbuilder
 
 import (
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt"
-	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 	"github.com/cockroachdb/cockroach/pkg/sql/types"
 )
@@ -140,7 +140,7 @@ func (c *scopeColumn) ResolvedType() *types.T {
 
 // Eval is part of the tree.TypedExpr interface.
 func (*scopeColumn) Eval(_ *tree.EvalContext) (tree.Datum, error) {
-	panic(pgerror.AssertionFailedf("scopeColumn must be replaced before evaluation"))
+	panic(errors.AssertionFailedf("scopeColumn must be replaced before evaluation"))
 }
 
 // Variable is part of the tree.VariableExpr interface. This prevents the

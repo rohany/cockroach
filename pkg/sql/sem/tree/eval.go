@@ -2118,7 +2118,7 @@ func boolFromCmp(cmp int, op ComparisonOperator) *DBool {
 	case LE:
 		return MakeDBool(cmp <= 0)
 	default:
-		panic(pgerror.AssertionFailedf("unexpected ComparisonOperator in boolFromCmp: %v", log.Safe(op)))
+		panic(errors.AssertionFailedf("unexpected ComparisonOperator in boolFromCmp: %v", log.Safe(op)))
 	}
 }
 
@@ -2712,7 +2712,7 @@ func (ctx *EvalContext) GetStmtTimestamp() time.Time {
 	// TODO(knz): a zero timestamp should never be read, even during
 	// Prepare. This will need to be addressed.
 	if !ctx.PrepareOnly && ctx.StmtTimestamp.IsZero() {
-		panic(pgerror.AssertionFailedf("zero statement timestamp in EvalContext"))
+		panic(errors.AssertionFailedf("zero statement timestamp in EvalContext"))
 	}
 	return ctx.StmtTimestamp
 }
@@ -2722,7 +2722,7 @@ func (ctx *EvalContext) GetStmtTimestamp() time.Time {
 func (ctx *EvalContext) GetClusterTimestamp() *DDecimal {
 	ts := ctx.Txn.CommitTimestamp()
 	if ts == (hlc.Timestamp{}) {
-		panic(pgerror.AssertionFailedf("zero cluster timestamp in txn"))
+		panic(errors.AssertionFailedf("zero cluster timestamp in txn"))
 	}
 	return TimestampToDecimal(ts)
 }
@@ -2774,7 +2774,7 @@ func (ctx *EvalContext) GetTxnTimestamp(precision time.Duration) *DTimestampTZ {
 	// TODO(knz): a zero timestamp should never be read, even during
 	// Prepare. This will need to be addressed.
 	if !ctx.PrepareOnly && ctx.TxnTimestamp.IsZero() {
-		panic(pgerror.AssertionFailedf("zero transaction timestamp in EvalContext"))
+		panic(errors.AssertionFailedf("zero transaction timestamp in EvalContext"))
 	}
 	return MakeDTimestampTZ(ctx.TxnTimestamp, precision)
 }
@@ -2785,7 +2785,7 @@ func (ctx *EvalContext) GetTxnTimestampNoZone(precision time.Duration) *DTimesta
 	// TODO(knz): a zero timestamp should never be read, even during
 	// Prepare. This will need to be addressed.
 	if !ctx.PrepareOnly && ctx.TxnTimestamp.IsZero() {
-		panic(pgerror.AssertionFailedf("zero transaction timestamp in EvalContext"))
+		panic(errors.AssertionFailedf("zero transaction timestamp in EvalContext"))
 	}
 	return MakeDTimestamp(ctx.TxnTimestamp, precision)
 }
@@ -2875,7 +2875,7 @@ func (expr *BinaryExpr) Eval(ctx *EvalContext) (Datum, error) {
 	}
 	if ctx.TestingKnobs.AssertBinaryExprReturnTypes {
 		if err := ensureExpectedType(expr.fn.ReturnType, res); err != nil {
-			return nil, pgerror.NewAssertionErrorWithWrappedErrf(err,
+			return nil, errors.NewAssertionErrorWithWrappedErrf(err,
 				"binary op %q", expr)
 		}
 	}
@@ -2975,7 +2975,7 @@ func queryOidWithJoin(
 	case *DString:
 		queryCol = info.nameCol
 	default:
-		return nil, pgerror.AssertionFailedf("invalid argument to OID cast: %s", d)
+		return nil, errors.AssertionFailedf("invalid argument to OID cast: %s", d)
 	}
 	results, err := ctx.InternalExecutor.QueryRow(
 		ctx.Ctx(), "queryOidWithJoin",
@@ -3579,7 +3579,7 @@ func (expr *IndirectionExpr) Eval(ctx *EvalContext) (Datum, error) {
 	var subscriptIdx int
 	for i, t := range expr.Indirection {
 		if t.Slice || i > 0 {
-			return nil, pgerror.AssertionFailedf("unsupported feature should have been rejected during planning")
+			return nil, errors.AssertionFailedf("unsupported feature should have been rejected during planning")
 		}
 
 		d, err := t.Begin.(TypedExpr).Eval(ctx)
@@ -3681,7 +3681,7 @@ func (expr *ComparisonExpr) Eval(ctx *EvalContext) (Datum, error) {
 		} else if array, ok := AsDArray(right); ok {
 			datums = array.Array
 		} else {
-			return nil, pgerror.AssertionFailedf("unhandled right expression %s", right)
+			return nil, errors.AssertionFailedf("unhandled right expression %s", right)
 		}
 		return evalDatumsCmp(ctx, op, expr.SubOperator, expr.fn, left, datums)
 	}
@@ -3704,7 +3704,7 @@ func (expr *ComparisonExpr) Eval(ctx *EvalContext) (Datum, error) {
 // ValueGenerator for use by set projections.
 func (expr *FuncExpr) EvalArgsAndGetGenerator(ctx *EvalContext) (ValueGenerator, error) {
 	if expr.fn == nil || expr.fnProps.Class != GeneratorClass {
-		return nil, pgerror.AssertionFailedf("cannot call EvalArgsAndGetGenerator() on non-aggregate function: %q", ErrString(expr))
+		return nil, errors.AssertionFailedf("cannot call EvalArgsAndGetGenerator() on non-aggregate function: %q", ErrString(expr))
 	}
 	nullArg, args, err := expr.evalArgs(ctx)
 	if err != nil || nullArg {
@@ -3760,7 +3760,7 @@ func (expr *FuncExpr) Eval(ctx *EvalContext) (Datum, error) {
 	}
 	if ctx.TestingKnobs.AssertFuncExprReturnTypes {
 		if err := ensureExpectedType(expr.fn.FixedReturnType(), res); err != nil {
-			return nil, pgerror.NewAssertionErrorWithWrappedErrf(err, "function %q", expr)
+			return nil, errors.NewAssertionErrorWithWrappedErrf(err, "function %q", expr)
 		}
 	}
 	return res, nil
@@ -3772,7 +3772,7 @@ func (expr *FuncExpr) Eval(ctx *EvalContext) (Datum, error) {
 func ensureExpectedType(exp *types.T, d Datum) error {
 	if !(exp.Family() == types.AnyFamily || d.ResolvedType().Family() == types.UnknownFamily ||
 		d.ResolvedType().Equivalent(exp)) {
-		return pgerror.AssertionFailedf(
+		return errors.AssertionFailedf(
 			"expected return type %q, got: %q", log.Safe(exp), log.Safe(d.ResolvedType()))
 	}
 	return nil
@@ -3908,7 +3908,7 @@ func (expr *ParenExpr) Eval(ctx *EvalContext) (Datum, error) {
 
 // Eval implements the TypedExpr interface.
 func (expr *RangeCond) Eval(ctx *EvalContext) (Datum, error) {
-	return nil, pgerror.AssertionFailedf("unhandled type %T", expr)
+	return nil, errors.AssertionFailedf("unhandled type %T", expr)
 }
 
 // Eval implements the TypedExpr interface.
@@ -3926,7 +3926,7 @@ func (expr *UnaryExpr) Eval(ctx *EvalContext) (Datum, error) {
 	}
 	if ctx.TestingKnobs.AssertUnaryExprReturnTypes {
 		if err := ensureExpectedType(expr.fn.ReturnType, res); err != nil {
-			return nil, pgerror.NewAssertionErrorWithWrappedErrf(err, "unary op %q", expr)
+			return nil, errors.NewAssertionErrorWithWrappedErrf(err, "unary op %q", expr)
 		}
 	}
 	return res, err
@@ -3934,32 +3934,32 @@ func (expr *UnaryExpr) Eval(ctx *EvalContext) (Datum, error) {
 
 // Eval implements the TypedExpr interface.
 func (expr DefaultVal) Eval(ctx *EvalContext) (Datum, error) {
-	return nil, pgerror.AssertionFailedf("unhandled type %T", expr)
+	return nil, errors.AssertionFailedf("unhandled type %T", expr)
 }
 
 // Eval implements the TypedExpr interface.
 func (expr UnqualifiedStar) Eval(ctx *EvalContext) (Datum, error) {
-	return nil, pgerror.AssertionFailedf("unhandled type %T", expr)
+	return nil, errors.AssertionFailedf("unhandled type %T", expr)
 }
 
 // Eval implements the TypedExpr interface.
 func (expr *UnresolvedName) Eval(ctx *EvalContext) (Datum, error) {
-	return nil, pgerror.AssertionFailedf("unhandled type %T", expr)
+	return nil, errors.AssertionFailedf("unhandled type %T", expr)
 }
 
 // Eval implements the TypedExpr interface.
 func (expr *AllColumnsSelector) Eval(ctx *EvalContext) (Datum, error) {
-	return nil, pgerror.AssertionFailedf("unhandled type %T", expr)
+	return nil, errors.AssertionFailedf("unhandled type %T", expr)
 }
 
 // Eval implements the TypedExpr interface.
 func (expr *TupleStar) Eval(ctx *EvalContext) (Datum, error) {
-	return nil, pgerror.AssertionFailedf("unhandled type %T", expr)
+	return nil, errors.AssertionFailedf("unhandled type %T", expr)
 }
 
 // Eval implements the TypedExpr interface.
 func (expr *ColumnItem) Eval(ctx *EvalContext) (Datum, error) {
-	return nil, pgerror.AssertionFailedf("unhandled type %T", expr)
+	return nil, errors.AssertionFailedf("unhandled type %T", expr)
 }
 
 // Eval implements the TypedExpr interface.
@@ -3978,7 +3978,7 @@ func (t *Tuple) Eval(ctx *EvalContext) (Datum, error) {
 // arrayOfType returns a fresh DArray of the input type.
 func arrayOfType(typ *types.T) (*DArray, error) {
 	if typ.Family() != types.ArrayFamily {
-		return nil, pgerror.AssertionFailedf("array node type (%v) is not types.TArray", typ)
+		return nil, errors.AssertionFailedf("array node type (%v) is not types.TArray", typ)
 	}
 	if err := types.CheckArrayElementType(typ.ArrayContents()); err != nil {
 		return nil, err
@@ -4024,7 +4024,7 @@ func (t *ArrayFlatten) Eval(ctx *EvalContext) (Datum, error) {
 
 	tuple, ok := d.(*DTuple)
 	if !ok {
-		return nil, pgerror.AssertionFailedf("array subquery result (%v) is not DTuple", d)
+		return nil, errors.AssertionFailedf("array subquery result (%v) is not DTuple", d)
 	}
 	array.Array = tuple.D
 	return array, nil
@@ -4152,7 +4152,7 @@ func (t *Placeholder) Eval(ctx *EvalContext) (Datum, error) {
 	typ := ctx.Placeholders.Types[t.Idx]
 	if typ == nil {
 		// All placeholders should be typed at this point.
-		return nil, pgerror.AssertionFailedf("missing type for placeholder %s", t)
+		return nil, errors.AssertionFailedf("missing type for placeholder %s", t)
 	}
 	if !e.ResolvedType().Equivalent(typ) {
 		// This happens when we overrode the placeholder's type during type
@@ -4604,7 +4604,7 @@ func replaceCustomEscape(s string, escape rune) (string, error) {
 			} else {
 				// Escape character is the last character in s which is an error
 				// that must have been caught in calculateLengthAfterReplacingCustomEscape.
-				return "", pgerror.AssertionFailedf(
+				return "", errors.AssertionFailedf(
 					"unexpected: escape character is the last one in replaceCustomEscape.")
 			}
 		} else if s[sIndex] == '\\' {
@@ -4613,7 +4613,7 @@ func replaceCustomEscape(s string, escape rune) (string, error) {
 			if sIndex+1 == sLen {
 				// This case should never be reached since it should
 				// have been caught in calculateLengthAfterReplacingCustomEscape.
-				return "", pgerror.AssertionFailedf(
+				return "", errors.AssertionFailedf(
 					"unexpected: a single backslash encountered in replaceCustomEscape.")
 			} else if s[sIndex+1] == '\\' {
 				// We want to escape '\\' to `\\\\` for correct processing later by unescapePattern. See (3).
@@ -4636,7 +4636,7 @@ func replaceCustomEscape(s string, escape rune) (string, error) {
 					if sIndex+2 == sLen {
 						// Escape character is the last character in s which is an error
 						// that must have been caught in calculateLengthAfterReplacingCustomEscape.
-						return "", pgerror.AssertionFailedf(
+						return "", errors.AssertionFailedf(
 							"unexpected: escape character is the last one in replaceCustomEscape.")
 					}
 					if sIndex+4 <= sLen {

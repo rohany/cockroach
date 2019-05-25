@@ -24,9 +24,9 @@
 package tree
 
 import (
-	"errors"
 	"fmt"
 
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/sql/lex"
 	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
 	"github.com/cockroachdb/cockroach/pkg/sql/types"
@@ -325,7 +325,7 @@ func NewColumnTableDef(
 			d.Family.Create = t.Create
 			d.Family.IfNotExists = t.IfNotExists
 		default:
-			return nil, pgerror.AssertionFailedf("unexpected column qualification: %T", c)
+			return nil, errors.AssertionFailedf("unexpected column qualification: %T", c)
 		}
 	}
 	return d, nil
@@ -1052,7 +1052,7 @@ func (node *SequenceOptions) Format(ctx *FmtCtx) {
 		case SeqOptVirtual:
 			ctx.WriteString(option.Name)
 		default:
-			panic(pgerror.AssertionFailedf("unexpected SequenceOption: %v", option))
+			panic(errors.AssertionFailedf("unexpected SequenceOption: %v", option))
 		}
 	}
 }

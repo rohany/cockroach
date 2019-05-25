@@ -20,6 +20,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/internal/client"
 	"github.com/cockroachdb/cockroach/pkg/jobs"
 	"github.com/cockroachdb/cockroach/pkg/jobs/jobspb"
@@ -36,7 +37,6 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/util/hlc"
 	"github.com/cockroachdb/cockroach/pkg/util/log"
 	"github.com/cockroachdb/cockroach/pkg/util/timeutil"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -161,7 +161,7 @@ func (sc *SchemaChanger) runBackfill(
 				constraintsToAdd = append(constraintsToAdd, *t.Constraint)
 				constraintsToValidate = append(constraintsToValidate, *t.Constraint)
 			default:
-				return pgerror.AssertionFailedf(
+				return errors.AssertionFailedf(
 					"unsupported mutation: %+v", m)
 			}
 
@@ -176,12 +176,12 @@ func (sc *SchemaChanger) runBackfill(
 			case *sqlbase.DescriptorMutation_Constraint:
 				// Only possible during a rollback
 				if !m.Rollback {
-					return pgerror.AssertionFailedf(
+					return errors.AssertionFailedf(
 						"trying to drop constraint through schema changer outside of a rollback: %+v", t)
 				}
 				// no-op
 			default:
-				return pgerror.AssertionFailedf(
+				return errors.AssertionFailedf(
 					"unsupported mutation: %+v", m)
 			}
 		}
@@ -503,7 +503,7 @@ func getJobIDForMutationWithDescriptor(
 		}
 	}
 
-	return 0, pgerror.AssertionFailedf(
+	return 0, errors.AssertionFailedf(
 		"job not found for table id %d, mutation %d", tableDesc.ID, mutationID)
 }
 
@@ -762,7 +762,7 @@ func (sc *SchemaChanger) updateJobRunningStatus(
 				ctx context.Context, details jobspb.Details) (jobs.RunningStatus, error) {
 				return status, nil
 			}); err != nil {
-				return pgerror.NewAssertionErrorWithWrappedErrf(err,
+				return errors.NewAssertionErrorWithWrappedErrf(err,
 					"failed to update running status of job %d", log.Safe(*sc.job.ID()))
 			}
 		}
@@ -927,7 +927,7 @@ func (sc *SchemaChanger) validateInvertedIndexes(
 					// JSON columns cannot have unique indexes, so if the expected and
 					// actual counts do not match, it's always a bug rather than a
 					// uniqueness violation.
-					return pgerror.AssertionFailedf(
+					return errors.AssertionFailedf(
 						"validation of index %s failed: expected %d rows, found %d",
 						idx.Name, log.Safe(expectedCount[i]), log.Safe(idxLen))
 				}
@@ -1172,13 +1172,13 @@ func runSchemaChangesInTxn(
 					}
 					idx.ForeignKey = t.Constraint.ForeignKey
 				default:
-					return pgerror.AssertionFailedf(
+					return errors.AssertionFailedf(
 						"unsupported constraint type: %d", log.Safe(t.Constraint.ConstraintType))
 				}
 				constraintsToValidate = append(constraintsToValidate, *t.Constraint)
 
 			default:
-				return pgerror.AssertionFailedf(
+				return errors.AssertionFailedf(
 					"unsupported mutation: %+v", m)
 			}
 
@@ -1200,11 +1200,11 @@ func runSchemaChangesInTxn(
 				}
 
 			case *sqlbase.DescriptorMutation_Constraint:
-				return pgerror.AssertionFailedf(
+				return errors.AssertionFailedf(
 					"constraint validation mutation cannot be in the DROP state within the same transaction: %+v", m)
 
 			default:
-				return pgerror.AssertionFailedf("unsupported mutation: %+v", m)
+				return errors.AssertionFailedf("unsupported mutation: %+v", m)
 			}
 
 		}
@@ -1241,7 +1241,7 @@ func runSchemaChangesInTxn(
 			}
 			idx.ForeignKey.Validity = sqlbase.ConstraintValidity_Unvalidated
 		default:
-			return pgerror.AssertionFailedf(
+			return errors.AssertionFailedf(
 				"unsupported constraint type: %d", log.Safe(c.ConstraintType))
 		}
 	}
@@ -1374,7 +1374,7 @@ func columnBackfillInTxn(
 	for k := range fkTables {
 		t := tc.getUncommittedTableByID(k)
 		if (uncommittedTable{}) == t || !t.IsNewTable() {
-			return pgerror.AssertionFailedf(
+			return errors.AssertionFailedf(
 				"table %s not created in the same transaction as id = %d", tableDesc.Name, k)
 		}
 		otherTableDescs = append(otherTableDescs, t.ImmutableTableDescriptor)

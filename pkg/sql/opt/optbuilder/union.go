@@ -15,6 +15,7 @@
 package optbuilder
 
 import (
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt/memo"
 	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
@@ -84,7 +85,7 @@ func (b *Builder) buildUnion(
 		}
 		if l.hidden != r.hidden {
 			// This should never happen.
-			panic(pgerror.AssertionFailedf("%v types cannot be matched", clause.Type))
+			panic(errors.AssertionFailedf("%v types cannot be matched", clause.Type))
 		}
 
 		var typ *types.T

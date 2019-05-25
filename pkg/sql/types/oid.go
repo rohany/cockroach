@@ -15,7 +15,7 @@
 package types
 
 import (
-	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
+	"github.com/cockroachdb/cockroach/pkg/errors"
 	"github.com/lib/pq/oid"
 )
 
@@ -197,7 +197,7 @@ func calcArrayOid(elemTyp *T) oid.Oid {
 	// init method).
 	o = oidToArrayOid[o]
 	if o == 0 {
-		panic(pgerror.AssertionFailedf("oid %d couldn't be mapped to array oid", o))
+		panic(errors.AssertionFailedf("oid %d couldn't be mapped to array oid", o))
 	}
 	return o
 }
