@@ -514,7 +514,7 @@ func TestEncIPUp(b []byte, data []byte) []byte {
 func TestEncIPDown(b []byte, data []byte) []byte {
 	n := len(b)
 	b = TestEncIPUp(b, data)
-	b[n] = bytesDescMarker
+	b[n] = byte(IPAddr)
 	onesComplement(b[n+1:])
 	return b
 }
