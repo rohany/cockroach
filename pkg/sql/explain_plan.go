@@ -354,7 +354,6 @@ func populateEntriesForObserver(
 
 // planToString uses explain() to build a string representation of the planNode.
 func planToString(ctx context.Context, plan planNode, subqueryPlans []subquery) string {
-	fmt.Println("IN HERERERASDBA?")
 	e := explainer{
 		explainFlags: explainFlags{
 			showMetadata: true,

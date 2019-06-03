@@ -17,6 +17,7 @@ package sql
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 
 	"github.com/cockroachdb/cockroach/pkg/roachpb"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
@@ -47,8 +48,8 @@ import (
 //
 // and planToTree would return the join node.
 func planToTree(ctx context.Context, top *planTop) *roachpb.ExplainTreePlanNode {
+	debug.PrintStack()
 	var nodeStack planNodeStack
-	fmt.Println("In plan to tree?")
 	observer := planObserver{
 		// We set followRowSourceToPlanNode to true, to instruct the plan observer
 		// to follow the edges from rowSourceToPlanNodes (indicating that the prior
@@ -68,6 +69,7 @@ func planToTree(ctx context.Context, top *planTop) *roachpb.ExplainTreePlanNode 
 			if expr == nil {
 				return
 			}
+
 			stackTop := nodeStack.peek()
 			stackTop.Attrs = append(stackTop.Attrs, &roachpb.ExplainTreePlanNode_Attr{
 				Key:   fieldName,
