@@ -15,6 +15,7 @@
 package sqlbase
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/cockroachdb/apd"
@@ -129,9 +130,11 @@ func EncodeTableKey(b []byte, val tree.Datum, dir encoding.Direction) ([]byte, e
 	case *tree.DIPAddr:
 		data := t.ToBuffer(nil)
 		if dir == encoding.Ascending {
-			return encoding.EncodeBytesAscending(b, data), nil
+			return encoding.TestEncIPUp(b, data), nil
+			// return encoding.EncodeBytesAscending(b, data), nil
 		}
-		return encoding.EncodeBytesDescending(b, data), nil
+		return encoding.TestEncIPDown(b, data), nil
+		// return encoding.EncodeBytesDescending(b, data), nil
 	case *tree.DTuple:
 		for _, datum := range t.D {
 			var err error
@@ -308,6 +311,7 @@ func DecodeTableKey(
 		u, err := uuid.FromBytes(r)
 		return a.NewDUuid(tree.DUuid{UUID: u}), rkey, err
 	case types.INetFamily:
+		fmt.Println("in decode key")
 		var r []byte
 		if dir == encoding.Ascending {
 			rkey, r, err = encoding.DecodeBytesAscending(key, nil)

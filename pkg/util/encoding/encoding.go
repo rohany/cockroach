@@ -507,6 +507,27 @@ func EncodeBytesAscending(b []byte, data []byte) []byte {
 	return encodeBytesAscendingWithTerminatorAndPrefix(b, data, ascendingEscapes.escapedTerm, bytesMarker)
 }
 
+func TestEncIPUp(b []byte, data []byte) []byte {
+	return encodeBytesAscendingWithTerminatorAndPrefix(b, data, ascendingEscapes.escapedTerm, byte(IPAddr))
+}
+
+func TestEncIPDown(b []byte, data []byte) []byte {
+	n := len(b)
+	b = TestEncIPUp(b, data)
+	b[n] = bytesDescMarker
+	onesComplement(b[n+1:])
+	return b
+}
+
+func TestIPDecodeUp(b []byte) ([]byte, string, error) {
+	r := []byte{}
+	b, r, err := decodeBytesInternal(b, r, ascendingEscapes, true)
+	var ip ipaddr.IPAddr
+	ip.FromBuffer(r)
+	fmt.Printf("OH BABY %s\n", ip.String())
+	return b, ip.String(), err
+}
+
 // encodeBytesAscendingWithTerminatorAndPrefix encodes the []byte value using an escape-based
 // encoding. The encoded value is terminated with the sequence
 // "\x00\terminator". The encoded bytes are append to the supplied buffer
@@ -1265,6 +1286,8 @@ func slowPeekType(b []byte) Type {
 			return Float
 		case m >= decimalNaN && m <= decimalNaNDesc:
 			return Decimal
+		case m == byte(IPAddr):
+			return IPAddr
 		}
 	}
 	return Unknown
@@ -1327,6 +1350,8 @@ func PeekLength(b []byte) (int, error) {
 		}
 		return 1 + n + m + 1, nil
 	case bytesMarker:
+		return getBytesLength(b, ascendingEscapes)
+	case byte(IPAddr):
 		return getBytesLength(b, ascendingEscapes)
 	case jsonInvertedIndex:
 		return getJSONInvertedIndexKeyLength(b)
@@ -1549,6 +1574,9 @@ func prettyPrintFirstValue(dir Direction, b []byte) ([]byte, string, error) {
 			return b, "", err
 		}
 		return b, d.StringNanos(), nil
+	case IPAddr:
+		fmt.Println("in ip addr case")
+		return TestIPDecodeUp(b)
 	default:
 		if len(b) >= 1 {
 			switch b[0] {
@@ -1903,6 +1931,7 @@ func EncodeUntaggedUUIDValue(appendTo []byte, u uuid.UUID) []byte {
 // EncodeIPAddrValue encodes a ipaddr.IPAddr value with its value tag, appends
 // it to the supplied buffer, and returns the final buffer.
 func EncodeIPAddrValue(appendTo []byte, colID uint32, u ipaddr.IPAddr) []byte {
+	fmt.Println("called encode ip addr")
 	appendTo = EncodeValueTag(appendTo, colID, IPAddr)
 	return EncodeUntaggedIPAddrValue(appendTo, u)
 }

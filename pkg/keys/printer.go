@@ -525,6 +525,7 @@ func prettyPrintInternal(valDirs []encoding.Direction, key roachpb.Key, quoteRaw
 				for _, e := range k.entries {
 					if bytes.HasPrefix(key, e.prefix) {
 						hasPrefix = true
+						// fmt.Printf("In here %s %s \n", e.name, e.ppFunc(valDirs, key))
 						key = key[len(e.prefix):]
 						b.WriteString(e.name)
 						b.WriteString(e.ppFunc(valDirs, key))
@@ -542,7 +543,6 @@ func prettyPrintInternal(valDirs []encoding.Direction, key roachpb.Key, quoteRaw
 						b.WriteByte('"')
 					}
 				}
-
 				return b.String(), true
 			}
 		}

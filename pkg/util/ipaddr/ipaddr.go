@@ -17,6 +17,7 @@ package ipaddr
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math"
 	"math/rand"
@@ -94,6 +95,7 @@ func (ipAddr *IPAddr) ToBuffer(appendTo []byte) []byte {
 // FromBuffer populates an IPAddr with data from a byte slice, returning the
 // remaining buffer or an error.
 func (ipAddr *IPAddr) FromBuffer(data []byte) ([]byte, error) {
+	fmt.Println("we calling from buffer anywhere?")
 	ipAddr.Family = IPFamily(data[0])
 	if ipAddr.Family != IPv4family && ipAddr.Family != IPv6family {
 		// TODO(knz): this wants to become an assertion failure.

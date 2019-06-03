@@ -634,11 +634,13 @@ func encodeConstraintKey(
 			key = keys[0]
 		} else {
 			key, err = sqlbase.EncodeTableKey(key, val, dir)
+			fmt.Printf("Case 2: %q %s\n", key, val.String())
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
+	fmt.Printf("Result from Encoding constraint key %q\n", key)
 	return key, nil
 }
 
