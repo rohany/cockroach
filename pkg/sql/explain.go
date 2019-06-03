@@ -35,6 +35,8 @@ func (p *planner) Explain(ctx context.Context, n *tree.Explain) (planNode, error
 	defer func(save bool) { p.extendedEvalCtx.SkipNormalize = save }(p.extendedEvalCtx.SkipNormalize)
 	p.extendedEvalCtx.SkipNormalize = opts.Flags.Contains(tree.ExplainFlagNoNormalize)
 
+	fmt.Println("in explain at least")
+
 	switch opts.Mode {
 	case tree.ExplainDistSQL:
 		analyze := opts.Flags.Contains(tree.ExplainFlagAnalyze)
