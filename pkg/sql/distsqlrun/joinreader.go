@@ -100,6 +100,10 @@ type joinReader struct {
 	finalLookupBatch        bool
 	toEmit                  sqlbase.EncDatumRows
 
+	// Hold onto what families we need to query from if our
+	// needed columns span multiple queries
+	neededFamilies []sqlbase.FamilyID
+
 	// A few scratch buffers, to avoid re-allocating.
 	lookupRows  []lookupRow
 	indexKeyRow sqlbase.EncDatumRow
@@ -209,6 +213,12 @@ func newJoinReader(
 
 	jr.indexKeyPrefix = sqlbase.MakeIndexKeyPrefix(&jr.desc, jr.index.ID)
 
+	jr.neededFamilies = sqlbase.NeededColumnFamilyIDs(
+		spec.Table.ColumnIdxMap(),
+		spec.Table.Families,
+		jr.neededRightCols(),
+	)
+
 	// TODO(radu): verify the input types match the index key types
 	return jr, nil
 }
@@ -277,6 +287,27 @@ func (jr *joinReader) generateSpan(row sqlbase.EncDatumRow) (roachpb.Span, error
 	return sqlbase.MakeSpanFromEncDatums(
 		jr.indexKeyPrefix, jr.indexKeyRow, jr.indexTypes[:numLookupCols], jr.indexDirs, &jr.desc,
 		jr.index, &jr.alloc)
+}
+
+// TODO: maybe want to move this into the joinerbase?
+func (jr *joinReader) canSplitSpanIntoSeparateFamilies(span roachpb.Span) (bool, roachpb.Spans) {
+	// check the following:
+	// - we have more than one needed family
+	// - we are looking at the primary index
+	// - our table has more than the default family
+	// - we have all the columns of the tables index
+	// TODO VERIFY: I think this logic holds. If the number of columns we are looking
+	// up on is equal to the number of columns in the primary index, then
+	// we are guaranteed to be looking at a single row, so we don't need to
+	// be checking if span.Key.Equals(span.EndKey)
+	if len(jr.neededFamilies) > 0 &&
+		jr.index.ID == jr.desc.PrimaryIndex.ID &&
+		len(jr.desc.Families) > 1 &&
+		len(jr.lookupCols) == len(jr.desc.PrimaryIndex.ColumnIDs) &&
+		len(jr.neededFamilies) < len(jr.desc.Families) {
+		return true, sqlbase.SplitSpanIntoSeparateFamilies(span, jr.neededFamilies)
+	}
+	return false, nil
 }
 
 // Next is part of the RowSource interface.
@@ -369,7 +400,11 @@ func (jr *joinReader) readInput() (joinReaderState, *distsqlpb.ProducerMetadata)
 		}
 		inputRowIndices := jr.keyToInputRowIndices[string(span.Key)]
 		if inputRowIndices == nil {
-			spans = append(spans, span)
+			if canSplit, splitSpans := jr.canSplitSpanIntoSeparateFamilies(span); canSplit {
+				spans = append(spans, splitSpans...)
+			} else {
+				spans = append(spans, span)
+			}
 		}
 		jr.keyToInputRowIndices[string(span.Key)] = append(inputRowIndices, i)
 	}

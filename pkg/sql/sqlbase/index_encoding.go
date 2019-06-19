@@ -21,6 +21,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/roachpb"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 	"github.com/cockroachdb/cockroach/pkg/sql/types"
+	"github.com/cockroachdb/cockroach/pkg/util"
 	"github.com/cockroachdb/cockroach/pkg/util/encoding"
 	"github.com/cockroachdb/cockroach/pkg/util/json"
 	"github.com/cockroachdb/errors"
@@ -236,6 +237,56 @@ func MakeSpanFromEncDatums(
 		endKey = startKey.PrefixEnd()
 	}
 	return roachpb.Span{Key: startKey, EndKey: endKey}, nil
+}
+
+// NeededColumnFamilyIDs TODO: I'm not sure the appropriate place for this, but it
+// seems like its going to be used a few places, so somewhere
+// in sqlbase seems like a decent spot.
+// NeededColumnFamilyIDs
+func NeededColumnFamilyIDs(
+	colIdxMap map[ColumnID]int, families []ColumnFamilyDescriptor, neededCols util.FastIntSet,
+) []FamilyID {
+	var needed []FamilyID
+	for i := range families {
+		family := &families[i]
+		for _, columnID := range family.ColumnIDs {
+			columnOrdinal := colIdxMap[columnID]
+			if neededCols.Contains(columnOrdinal) {
+				needed = append(needed, family.ID)
+				break
+			}
+		}
+	}
+
+	// TODO(solon): There is a further optimization possible here: if there is at
+	// least one non-nullable column in the needed column families, we can
+	// potentially omit the primary family, since the primary keys are encoded
+	// in all families. (Note that composite datums are an exception.)
+
+	return needed
+}
+
+// SplitSpanIntoSeparateFamilies splits a span representing a single row lookup
+// into separate spans that request particular families from neededFamilies
+// instead of requesting all the families. It is up to the client to verify
+// whether the requested span represents a single row lookup, and when
+// the span splitting is appropriate
+func SplitSpanIntoSeparateFamilies(span roachpb.Span, neededFamilies []FamilyID) roachpb.Spans {
+	var resultSpans roachpb.Spans
+	for i, familyID := range neededFamilies {
+		var tempSpan roachpb.Span
+		tempSpan.Key = make(roachpb.Key, len(span.Key))
+		copy(tempSpan.Key, span.Key)
+		tempSpan.Key = keys.MakeFamilyKey(tempSpan.Key, uint32(familyID))
+		tempSpan.EndKey = tempSpan.Key.PrefixEnd()
+		if i > 0 && familyID == neededFamilies[i-1]+1 {
+			// the family ID is the same, so collapse these spans
+			resultSpans[len(resultSpans)-1].EndKey = tempSpan.EndKey
+		} else {
+			resultSpans = append(resultSpans, tempSpan)
+		}
+	}
+	return resultSpans
 }
 
 // makeKeyFromEncDatums creates an index key by concatenating keyPrefix with the
