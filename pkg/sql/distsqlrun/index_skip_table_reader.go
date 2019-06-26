@@ -202,7 +202,10 @@ func (t *indexSkipTableReader) Next() (sqlbase.EncDatumRow, *distsqlpb.ProducerM
 		}
 
 		if t.reverse {
-
+			// In the case of reverse, this is much easier. The reverse batcher
+			// gives us the key that we got. Since ranges are exclusive, we just
+			// have to set the key we got back as the end key for the scan
+			t.spans[t.currentSpan].EndKey = key
 		} else {
 			// 0xff is the largest prefix marker for any encoded key. To ensure that
 			// our new key is larger than any value with the same prefix, we place
@@ -211,12 +214,13 @@ func (t *indexSkipTableReader) Next() (sqlbase.EncDatumRow, *distsqlpb.ProducerM
 			for i := 0; i < (t.indexLen - t.keyPrefixLen + 1); i++ {
 				key = append(key, 0xff)
 			}
+			t.spans[t.currentSpan].Key = key
 		}
 
-		t.spans[t.currentSpan].Key = key
+		// if the changes we made turned our current span invalid, mark that
+		// we should move on to the next span before returning the row
 		if !t.spans[t.currentSpan].Valid() {
 			t.currentSpan++
-			continue
 		}
 
 		if outRow := t.ProcessRowHelper(row); outRow != nil {
