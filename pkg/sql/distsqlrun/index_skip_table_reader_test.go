@@ -315,6 +315,7 @@ func TestIndexSkipTableReader(t *testing.T) {
 			},
 			expected: "[[6] [5]]",
 		},
+<<<<<<< HEAD
 		{
 			desc:      "Distinct reverse scan simple",
 			tableDesc: td1,
@@ -394,6 +395,8 @@ func TestIndexSkipTableReader(t *testing.T) {
 			},
 			expected: "[[10] [9] [8] [7] [6] [5] [4] [3] [2] [1]]",
 		},
+=======
+>>>>>>> 78c7cc6ade88f1199e809f024850c5ee327eaf9e
 	}
 
 	for _, c := range testCases {
