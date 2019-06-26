@@ -42,6 +42,8 @@ type indexSkipTableReader struct {
 	// is being considered.
 	indexLen int
 
+	reverse bool
+
 	ignoreMisplannedRanges bool
 	misplannedRanges       []roachpb.RangeInfo
 
@@ -77,6 +79,7 @@ func newIndexSkipTableReader(
 	returnMutations := spec.Visibility == distsqlpb.ScanVisibility_PUBLIC_AND_NOT_PUBLIC
 	types := spec.Table.ColumnTypesWithMutations(returnMutations)
 	t.ignoreMisplannedRanges = flowCtx.local
+	t.reverse = spec.Reverse
 
 	if err := t.Init(
 		t,
@@ -123,8 +126,7 @@ func newIndexSkipTableReader(
 		ValNeededForCol:  neededColumns,
 	}
 
-	// TODO: support reverse scans
-	if err := t.fetcher.Init(false /* reverseScan */, true, /* returnRangeInfo */
+	if err := t.fetcher.Init(t.reverse, true, /* returnRangeInfo */
 		false /* isCheck */, &t.alloc, tableArgs); err != nil {
 		return nil, err
 	}
@@ -136,8 +138,16 @@ func newIndexSkipTableReader(
 	} else {
 		t.spans = make(roachpb.Spans, nSpans)
 	}
-	for i, s := range spec.Spans {
-		t.spans[i] = s.Span
+
+	// if we are scanning in reverse, copy the spans in backwards
+	if t.reverse {
+		for i, s := range spec.Spans {
+			t.spans[len(spec.Spans)-i-1] = s.Span
+		}
+	} else {
+		for i, s := range spec.Spans {
+			t.spans[i] = s.Span
+		}
 	}
 
 	return t, nil
@@ -191,12 +201,16 @@ func (t *indexSkipTableReader) Next() (sqlbase.EncDatumRow, *distsqlpb.ProducerM
 			continue
 		}
 
-		// 0xff is the largest prefix marker for any encoded key. To ensure that
-		// our new key is larger than any value with the same prefix, we place
-		// 0xff at all other index column values, and one more to guard against
-		// 0xff present as a value in the table (0xff encodes a type of null)
-		for i := 0; i < (t.indexLen - t.keyPrefixLen + 1); i++ {
-			key = append(key, 0xff)
+		if t.reverse {
+
+		} else {
+			// 0xff is the largest prefix marker for any encoded key. To ensure that
+			// our new key is larger than any value with the same prefix, we place
+			// 0xff at all other index column values, and one more to guard against
+			// 0xff present as a value in the table (0xff encodes a type of null)
+			for i := 0; i < (t.indexLen - t.keyPrefixLen + 1); i++ {
+				key = append(key, 0xff)
+			}
 		}
 
 		t.spans[t.currentSpan].Key = key
