@@ -157,7 +157,9 @@ type feedOperator struct {
 	batch coldata.Batch
 }
 
-func (feedOperator) Init() {}
+func (feedOperator) Init() error {
+	return nil
+}
 
 func (o *feedOperator) Next(context.Context) coldata.Batch {
 	return o.batch
@@ -316,18 +318,24 @@ type mergeJoinBase struct {
 	builderState mjBuilderState
 }
 
-func (o *mergeJoinBase) Init() {
-	o.initWithBatchSize(coldata.BatchSize)
+func (o *mergeJoinBase) Init() error {
+	return o.initWithBatchSize(coldata.BatchSize)
 }
 
-func (o *mergeJoinBase) initWithBatchSize(outBatchSize uint16) {
+func (o *mergeJoinBase) initWithBatchSize(outBatchSize uint16) error {
 	outColTypes := make([]types.T, len(o.left.sourceTypes)+len(o.right.sourceTypes))
 	copy(outColTypes, o.left.sourceTypes)
 	copy(outColTypes[len(o.left.sourceTypes):], o.right.sourceTypes)
 
 	o.output = coldata.NewMemBatchWithSize(outColTypes, int(outBatchSize))
-	o.left.source.Init()
-	o.right.source.Init()
+	err := o.left.source.Init()
+	if err != nil {
+		return err
+	}
+	err = o.right.source.Init()
+	if err != nil {
+		return err
+	}
 	o.outputBatchSize = outBatchSize
 	// If there are no output columns, then the operator is for a COUNT query,
 	// in which case we treat the output batch size as the max uint16.
@@ -343,6 +351,7 @@ func (o *mergeJoinBase) initWithBatchSize(outBatchSize uint16) {
 
 	o.groups = makeGroupsBuffer(coldata.BatchSize)
 	o.resetBuilderCrossProductState()
+	return nil
 }
 
 func (o *mergeJoinBase) resetBuilderCrossProductState() {

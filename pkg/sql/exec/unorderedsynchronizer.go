@@ -81,10 +81,14 @@ func NewUnorderedSynchronizer(
 }
 
 // Init is part of the Operator interface.
-func (s *UnorderedSynchronizer) Init() {
+func (s *UnorderedSynchronizer) Init() error {
 	for _, input := range s.inputs {
-		input.Init()
+		err := input.Init()
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // init starts one goroutine per input to read from each input asynchronously

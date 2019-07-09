@@ -39,9 +39,13 @@ func NewDeselectorOp(input Operator, colTypes []types.T) Operator {
 	}
 }
 
-func (p *deselectorOp) Init() {
-	p.input.Init()
+func (p *deselectorOp) Init() error {
+	err := p.input.Init()
+	if err != nil {
+		return err
+	}
 	p.output = coldata.NewMemBatch(p.inputTypes)
+	return nil
 }
 
 func (p *deselectorOp) Next(ctx context.Context) coldata.Batch {

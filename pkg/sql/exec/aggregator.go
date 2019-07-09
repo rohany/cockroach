@@ -218,8 +218,11 @@ func makeAggregateFuncs(
 	return funcs, outTyps, nil
 }
 
-func (a *orderedAggregator) initWithBatchSize(inputSize, outputSize int) {
-	a.input.Init()
+func (a *orderedAggregator) initWithBatchSize(inputSize, outputSize int) error {
+	err := a.input.Init()
+	if err != nil {
+		return err
+	}
 
 	// Twice the input batchSize is allocated to avoid having to check for
 	// overflow when outputting.
@@ -229,10 +232,12 @@ func (a *orderedAggregator) initWithBatchSize(inputSize, outputSize int) {
 		a.aggregateFuncs[i].Init(a.groupCol, vec)
 	}
 	a.scratch.outputSize = outputSize
+
+	return nil
 }
 
-func (a *orderedAggregator) Init() {
-	a.initWithBatchSize(coldata.BatchSize, coldata.BatchSize)
+func (a *orderedAggregator) Init() error {
+	return a.initWithBatchSize(coldata.BatchSize, coldata.BatchSize)
 }
 
 func (a *orderedAggregator) Next(ctx context.Context) coldata.Batch {

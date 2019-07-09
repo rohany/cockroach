@@ -29,8 +29,8 @@ type oneShotOp struct {
 
 var _ Operator = &oneShotOp{}
 
-func (o *oneShotOp) Init() {
-	o.input.Init()
+func (o *oneShotOp) Init() error {
+	return o.input.Init()
 }
 
 func (o *oneShotOp) Next(ctx context.Context) coldata.Batch {

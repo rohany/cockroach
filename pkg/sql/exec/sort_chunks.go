@@ -54,9 +54,12 @@ type sortChunksOp struct {
 
 var _ Operator = &sortChunksOp{}
 
-func (c *sortChunksOp) Init() {
-	c.input.init()
-	c.sorter.Init()
+func (c *sortChunksOp) Init() error {
+	err := c.input.init()
+	if err != nil {
+		return err
+	}
+	return c.sorter.Init()
 }
 
 func (c *sortChunksOp) Next(ctx context.Context) coldata.Batch {
@@ -199,14 +202,18 @@ func newChunker(
 	}, nil
 }
 
-func (s *chunker) init() {
-	s.input.Init()
+func (s *chunker) init() error {
+	err := s.input.Init()
+	if err != nil {
+		return err
+	}
 	s.bufferedColumns = make([]coldata.Vec, len(s.inputTypes))
 	for i := 0; i < len(s.inputTypes); i++ {
 		s.bufferedColumns[i] = coldata.NewMemColumn(s.inputTypes[i], 0)
 	}
 	s.partitionCol = make([]bool, coldata.BatchSize)
 	s.chunks = make([]uint64, 0, 16)
+	return nil
 }
 
 // done indicates whether the chunker has fully consumed its input.

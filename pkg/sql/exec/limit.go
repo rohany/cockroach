@@ -41,9 +41,9 @@ func NewLimitOp(input Operator, limit uint64) Operator {
 	return c
 }
 
-func (c *limitOp) Init() {
+func (c *limitOp) Init() error {
 	c.internalBatch = coldata.NewMemBatch(nil)
-	c.input.Init()
+	return c.input.Init()
 }
 
 func (c *limitOp) Next(ctx context.Context) coldata.Batch {

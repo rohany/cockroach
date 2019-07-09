@@ -24,8 +24,8 @@ type fnOp struct {
 	fn func()
 }
 
-func (f fnOp) Init() {
-	f.input.Init()
+func (f fnOp) Init() error {
+	return f.input.Init()
 }
 
 func (f fnOp) Next(ctx context.Context) coldata.Batch {

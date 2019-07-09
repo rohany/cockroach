@@ -192,9 +192,15 @@ type hashJoinEqOp struct {
 
 var _ Operator = &hashJoinEqOp{}
 
-func (hj *hashJoinEqOp) Init() {
-	hj.spec.left.source.Init()
-	hj.spec.right.source.Init()
+func (hj *hashJoinEqOp) Init() error {
+	err := hj.spec.left.source.Init()
+	if err != nil {
+		return err
+	}
+	err = hj.spec.right.source.Init()
+	if err != nil {
+		return err
+	}
 
 	// Prepare the hashTable using the specified side as the build table. Prepare
 	// the prober using the other side as the probe table.
@@ -226,6 +232,7 @@ func (hj *hashJoinEqOp) Init() {
 	)
 
 	hj.runningState = hjBuilding
+	return nil
 }
 
 func (hj *hashJoinEqOp) Next(ctx context.Context) coldata.Batch {

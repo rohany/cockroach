@@ -40,12 +40,17 @@ func NewCountOp(input Operator) Operator {
 	return c
 }
 
-func (c *countOp) Init() {
-	c.input.Init()
+func (c *countOp) Init() error {
+	err := c.input.Init()
+	if err != nil {
+		return err
+	}
 	// Our output is always just one row.
 	c.internalBatch.SetLength(1)
 	c.count = 0
 	c.done = false
+
+	return nil
 }
 
 func (c *countOp) Next(ctx context.Context) coldata.Batch {

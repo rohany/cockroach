@@ -89,7 +89,9 @@ func newRouterOutputOpWithBlockedThresholdAndBatchSize(
 	return o
 }
 
-func (o *routerOutputOp) Init() {}
+func (o *routerOutputOp) Init() error {
+	return nil
+}
 
 // Next returns the next coldata.Batch from the routerOutputOp. Note that Next
 // is designed for only one concurrent caller and will block until data is

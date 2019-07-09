@@ -42,8 +42,8 @@ func NewOrdinalityOp(input Operator) Operator {
 	return c
 }
 
-func (c *ordinalityOp) Init() {
-	c.input.Init()
+func (c *ordinalityOp) Init() error {
+	return c.input.Init()
 }
 
 func (c *ordinalityOp) Next(ctx context.Context) coldata.Batch {

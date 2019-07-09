@@ -37,7 +37,9 @@ func (b *BatchBuffer) Add(batch coldata.Batch) {
 }
 
 // Init is part of the Operator interface.
-func (b *BatchBuffer) Init() {}
+func (b *BatchBuffer) Init() error {
+	return nil
+}
 
 // Next is part of the Operator interface.
 func (b *BatchBuffer) Next(context.Context) coldata.Batch {
@@ -92,7 +94,9 @@ func (s *RepeatableBatchSource) Next(context.Context) coldata.Batch {
 }
 
 // Init is part of the Operator interface.
-func (s *RepeatableBatchSource) Init() {}
+func (s *RepeatableBatchSource) Init() error {
+	return nil
+}
 
 // ResetBatchesToReturn sets a limit on how many batches the source returns, as
 // well as resetting how many batches the source has returned so far.

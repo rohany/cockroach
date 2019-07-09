@@ -158,8 +158,8 @@ type sortedDistinct_TYPEOp struct {
 
 var _ Operator = &sortedDistinct_TYPEOp{}
 
-func (p *sortedDistinct_TYPEOp) Init() {
-	p.input.Init()
+func (p *sortedDistinct_TYPEOp) Init() error {
+	return p.input.Init()
 }
 
 func (p *sortedDistinct_TYPEOp) reset() {

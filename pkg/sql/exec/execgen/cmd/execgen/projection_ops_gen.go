@@ -82,8 +82,8 @@ func (p {{template "opRConstName" .}}) Next(ctx context.Context) coldata.Batch {
 	return batch
 }
 
-func (p {{template "opRConstName" .}}) Init() {
-	p.input.Init()
+func (p {{template "opRConstName" .}}) Init() error {
+	return p.input.Init()
 }
 
 type {{template "opLConstName" .}} struct {
@@ -126,8 +126,8 @@ func (p {{template "opLConstName" .}}) Next(ctx context.Context) coldata.Batch {
 	return batch
 }
 
-func (p {{template "opLConstName" .}}) Init() {
-	p.input.Init()
+func (p {{template "opLConstName" .}}) Init() error {
+	return p.input.Init()
 }
 
 type {{template "opName" .}} struct {
@@ -172,8 +172,8 @@ func (p {{template "opName" .}}) Next(ctx context.Context) coldata.Batch {
 	return batch
 }
 
-func (p {{template "opName" .}}) Init() {
-	p.input.Init()
+func (p {{template "opName" .}}) Init() error {
+	return p.input.Init()
 }
 
 {{end}}

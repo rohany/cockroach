@@ -80,8 +80,8 @@ func (p *boolVecToSelOp) Next(ctx context.Context) coldata.Batch {
 	}
 }
 
-func (p *boolVecToSelOp) Init() {
-	p.input.Init()
+func (p *boolVecToSelOp) Init() error {
+	return p.input.Init()
 }
 
 func boolVecToSel64(vec []bool, sel []uint64) []uint64 {
@@ -115,8 +115,8 @@ type selBoolOp struct {
 	colIdx         int
 }
 
-func (d selBoolOp) Init() {
-	d.input.Init()
+func (d selBoolOp) Init() error {
+	return d.input.Init()
 }
 
 func (d selBoolOp) Next(ctx context.Context) coldata.Batch {

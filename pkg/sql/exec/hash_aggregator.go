@@ -158,9 +158,16 @@ func NewHashAggregator(
 	}, nil
 }
 
-func (ag *hashAggregator) Init() {
-	ag.spec.input.Init()
-	ag.orderedAgg.Init()
+func (ag *hashAggregator) Init() error {
+	err := ag.spec.input.Init()
+	if err != nil {
+		return err
+	}
+	err = ag.orderedAgg.Init()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (ag *hashAggregator) Next(ctx context.Context) coldata.Batch {
@@ -236,7 +243,9 @@ func makeHashAggregatorBatchOp(ht *hashTable, distinctCol []bool) Operator {
 	}
 }
 
-func (op *hashAggregatorBatchOp) Init() {}
+func (op *hashAggregatorBatchOp) Init() error {
+	return nil
+}
 
 func (op *hashAggregatorBatchOp) Next(context.Context) coldata.Batch {
 	// The selection vector needs to be populated before any batching can be

@@ -67,7 +67,7 @@ func newSorter(
 // spooler is a column vector operator that spools the data from its input.
 type spooler interface {
 	// init initializes this spooler and will be called once at the setup time.
-	init()
+	init() error
 	// spool performs the actual spooling.
 	spool(context.Context)
 	// getValues returns ith Vec of the already spooled data.
@@ -106,12 +106,16 @@ func newAllSpooler(input Operator, inputTypes []types.T) spooler {
 	}
 }
 
-func (p *allSpooler) init() {
-	p.input.Init()
+func (p *allSpooler) init() error {
+	err := p.input.Init()
+	if err != nil {
+		return err
+	}
 	p.values = make([]coldata.Vec, len(p.inputTypes))
 	for i := 0; i < len(p.inputTypes); i++ {
 		p.values[i] = coldata.NewMemColumn(p.inputTypes[i], 0)
 	}
+	return nil
 }
 
 func (p *allSpooler) spool(ctx context.Context) {
@@ -218,9 +222,13 @@ type colSorter interface {
 	reorder()
 }
 
-func (p *sortOp) Init() {
-	p.input.init()
+func (p *sortOp) Init() error {
+	err := p.input.init()
+	if err != nil {
+		return err
+	}
 	p.output = coldata.NewMemBatch(p.inputTypes)
+	return nil
 }
 
 // sortState represents the state of the sort operator.

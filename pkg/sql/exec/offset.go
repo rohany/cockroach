@@ -38,8 +38,8 @@ func NewOffsetOp(input Operator, offset uint64) Operator {
 	return c
 }
 
-func (c *offsetOp) Init() {
-	c.input.Init()
+func (c *offsetOp) Init() error {
+	return c.input.Init()
 }
 
 func (c *offsetOp) Next(ctx context.Context) coldata.Batch {

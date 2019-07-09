@@ -38,10 +38,14 @@ func NewCoalescerOp(input Operator, colTypes []types.T) Operator {
 	}
 }
 
-func (p *coalescerOp) Init() {
-	p.input.Init()
+func (p *coalescerOp) Init() error {
+	err := p.input.Init()
+	if err != nil {
+		return err
+	}
 	p.group = coldata.NewMemBatch(p.inputTypes)
 	p.buffer = coldata.NewMemBatch(p.inputTypes)
+	return nil
 }
 
 func (p *coalescerOp) Next(ctx context.Context) coldata.Batch {

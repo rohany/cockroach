@@ -191,7 +191,9 @@ func (i *Inbox) Timeout(err error) {
 }
 
 // Init is part of the Operator interface.
-func (i *Inbox) Init() {}
+func (i *Inbox) Init() error {
+	return nil
+}
 
 // Next returns the next batch. It will block until there is data available.
 // For simplicity, the Inbox will only listen for cancellation of the context

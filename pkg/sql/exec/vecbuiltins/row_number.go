@@ -43,6 +43,6 @@ type rowNumberBase struct {
 	rowNumber int64
 }
 
-func (r *rowNumberBase) Init() {
-	r.input.Init()
+func (r *rowNumberBase) Init() error {
+	return r.input.Init()
 }

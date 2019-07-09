@@ -35,14 +35,12 @@ type colBatchScan struct {
 
 var _ exec.Operator = &colBatchScan{}
 
-func (s *colBatchScan) Init() {
+func (s *colBatchScan) Init() error {
 	s.ctx = context.Background()
-	if err := s.rf.StartScan(
+	return s.rf.StartScan(
 		s.ctx, s.flowCtx.txn, s.spans,
 		true /* limit batches */, s.limitHint, s.flowCtx.traceKV,
-	); err != nil {
-		panic(err)
-	}
+	)
 }
 
 func (s *colBatchScan) Next(ctx context.Context) coldata.Batch {

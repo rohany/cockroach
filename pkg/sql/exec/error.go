@@ -107,8 +107,8 @@ func NewTestVectorizedErrorEmitter(input Operator) Operator {
 }
 
 // Init is part of Operator interface.
-func (e *TestVectorizedErrorEmitter) Init() {
-	e.input.Init()
+func (e *TestVectorizedErrorEmitter) Init() error {
+	return e.input.Init()
 }
 
 // Next is part of Operator interface.

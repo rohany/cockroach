@@ -57,7 +57,7 @@ func newColumnarizer(flowCtx *FlowCtx, processorID int32, input RowSource) (*col
 	return c, nil
 }
 
-func (c *columnarizer) Init() {
+func (c *columnarizer) Init() error {
 	typs := conv.FromColumnTypes(c.OutputTypes())
 	c.batch = coldata.NewMemBatch(typs)
 	c.buffered = make(sqlbase.EncDatumRows, coldata.BatchSize)
@@ -66,6 +66,7 @@ func (c *columnarizer) Init() {
 	}
 	c.accumulatedMeta = make([]distsqlpb.ProducerMetadata, 0, 1)
 	c.input.Start(context.TODO())
+	return nil
 }
 
 func (c *columnarizer) Next(context.Context) coldata.Batch {

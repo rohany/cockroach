@@ -59,8 +59,8 @@ type windowSortingPartitioner struct {
 	partitionColIdx int
 }
 
-func (p *windowSortingPartitioner) Init() {
-	p.input.Init()
+func (p *windowSortingPartitioner) Init() error {
+	return p.input.Init()
 }
 
 func (p *windowSortingPartitioner) Next(ctx context.Context) coldata.Batch {

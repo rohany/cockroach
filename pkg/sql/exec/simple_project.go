@@ -69,8 +69,8 @@ func NewSimpleProjectOp(input Operator, projection []uint32) Operator {
 	}
 }
 
-func (d *simpleProjectOp) Init() {
-	d.input.Init()
+func (d *simpleProjectOp) Init() error {
+	return d.input.Init()
 }
 
 func (d *simpleProjectOp) Next(ctx context.Context) coldata.Batch {

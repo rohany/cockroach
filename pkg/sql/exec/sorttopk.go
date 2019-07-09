@@ -72,8 +72,11 @@ type topKSorter struct {
 	output  coldata.Batch
 }
 
-func (t *topKSorter) Init() {
-	t.input.Init()
+func (t *topKSorter) Init() error {
+	err := t.input.Init()
+	if err != nil {
+		return err
+	}
 	t.topK = coldata.NewMemBatchWithSize(t.inputTypes, int(t.k))
 	t.comparators = make([]vecComparator, len(t.inputTypes))
 	for i := range t.inputTypes {
@@ -81,6 +84,7 @@ func (t *topKSorter) Init() {
 		t.comparators[i] = GetVecComparator(typ, 2)
 	}
 	t.output = coldata.NewMemBatchWithSize(t.inputTypes, coldata.BatchSize)
+	return nil
 }
 
 func (t *topKSorter) Next(ctx context.Context) coldata.Batch {

@@ -111,7 +111,7 @@ func (o *OrderedSynchronizer) Next(ctx context.Context) coldata.Batch {
 }
 
 // Init is part of the Operator interface.
-func (o *OrderedSynchronizer) Init() {
+func (o *OrderedSynchronizer) Init() error {
 	o.inputIndices = make([]uint16, len(o.inputs))
 	o.output = coldata.NewMemBatch(o.columnTypes)
 	for i := range o.inputs {
@@ -122,6 +122,7 @@ func (o *OrderedSynchronizer) Init() {
 		typ := o.columnTypes[o.ordering[i].ColIdx]
 		o.comparators[i] = GetVecComparator(typ, len(o.inputs))
 	}
+	return nil
 }
 
 func (o *OrderedSynchronizer) compareRow(batchIdx1 int, batchIdx2 int) int {

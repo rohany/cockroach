@@ -74,8 +74,8 @@ type const_TYPEOp struct {
 	constVal  _GOTYPE
 }
 
-func (c const_TYPEOp) Init() {
-	c.input.Init()
+func (c const_TYPEOp) Init() error {
+	return c.input.Init()
 }
 
 func (c const_TYPEOp) Next(ctx context.Context) coldata.Batch {
@@ -110,8 +110,8 @@ type constNullOp struct {
 	outputIdx int
 }
 
-func (c constNullOp) Init() {
-	c.input.Init()
+func (c constNullOp) Init() error {
+	return c.input.Init()
 }
 
 func (c constNullOp) Next(ctx context.Context) coldata.Batch {

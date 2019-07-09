@@ -121,8 +121,8 @@ func (p *{{template "opConstName" .}}) Next(ctx context.Context) coldata.Batch {
 	}
 }
 
-func (p {{template "opConstName" .}}) Init() {
-	p.input.Init()
+func (p {{template "opConstName" .}}) Init() error {
+	return p.input.Init()
 }
 {{end}}
 
@@ -161,8 +161,8 @@ func (p *{{template "opName" .}}) Next(ctx context.Context) coldata.Batch {
 	}
 }
 
-func (p {{template "opName" .}}) Init() {
-	p.input.Init()
+func (p {{template "opName" .}}) Init() error {
+	return p.input.Init()
 }
 {{end}}
 

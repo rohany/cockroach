@@ -68,13 +68,17 @@ type _RANK_STRINGOp struct {
 
 var _ exec.Operator = &_RANK_STRINGOp{}
 
-func (r *_RANK_STRINGOp) Init() {
-	r.input.Init()
+func (r *_RANK_STRINGOp) Init() error {
+	err := r.input.Init()
+	if err != nil {
+		return err
+	}
 	// RANK and DENSE_RANK start counting from 1. Before we assign the rank to a
 	// tuple in the batch, we first increment r.rank, so setting this
 	// rankIncrement to 1 will update r.rank to 1 on the very first tuple (as
 	// desired).
 	r.rankIncrement = 1
+	return nil
 }
 
 func (r *_RANK_STRINGOp) Next(ctx context.Context) coldata.Batch {

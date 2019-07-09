@@ -20,8 +20,9 @@ import (
 type Operator interface {
 	// Init initializes this operator. Will be called once at operator setup
 	// time. If an operator has an input operator, it's responsible for calling
-	// Init on that input operator as well.
-	Init()
+	// Init on that input operator as well. Init can return an error if there
+	// is not enough memory for the operator to execute.
+	Init() error
 
 	// Next returns the next Batch from this operator. Once the operator is
 	// finished, it will return a Batch with length 0. Subsequent calls to
@@ -57,8 +58,8 @@ func NewNoop(input Operator) Operator {
 	return &noopOperator{input: input}
 }
 
-func (n *noopOperator) Init() {
-	n.input.Init()
+func (n *noopOperator) Init() error {
+	return n.input.Init()
 }
 
 func (n *noopOperator) Next(ctx context.Context) coldata.Batch {
@@ -82,8 +83,8 @@ func NewZeroOp(input Operator) Operator {
 	return &zeroOperator{input: input}
 }
 
-func (s *zeroOperator) Init() {
-	s.input.Init()
+func (s *zeroOperator) Init() error {
+	return s.input.Init()
 }
 
 func (s *zeroOperator) Next(ctx context.Context) coldata.Batch {

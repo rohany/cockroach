@@ -161,12 +161,12 @@ func cmpIn_TYPE(target _GOTYPE, filterRow []_GOTYPE, hasNulls bool) comparisonRe
 	}
 }
 
-func (si *selectInOp_TYPE) Init() {
-	si.input.Init()
+func (si *selectInOp_TYPE) Init() error {
+	return si.input.Init()
 }
 
-func (pi *projectInOp_TYPE) Init() {
-	pi.input.Init()
+func (pi *projectInOp_TYPE) Init() error {
+	return pi.input.Init()
 }
 
 func (si *selectInOp_TYPE) Next(ctx context.Context) coldata.Batch {
