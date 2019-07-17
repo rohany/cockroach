@@ -76,7 +76,7 @@ SET tracing = on,kv,results; SELECT * FROM t@b_idx; SET tracing = off
 
 query T
 SELECT message FROM [SHOW KV TRACE FOR SESSION]
- WHERE message LIKE 'fetched:%' OR message LIKE 'output row%'
+ WHERE message LIKE 'fetched:%' OR message LIKE 'output row%' ORDER BY message LIKE 'fetched:%' DESC
 ----
 fetched: /t/b_idx/2/1/c/d -> /3/4
 output row: [1 2 3 4]
@@ -86,7 +86,7 @@ SET tracing = on,kv,results; SELECT * FROM t@c_idx; SET tracing = off
 
 query T
 SELECT message FROM [SHOW KV TRACE FOR SESSION]
- WHERE message LIKE 'fetched:%' OR message LIKE 'output row%'
+ WHERE message LIKE 'fetched:%' OR message LIKE 'output row%' ORDER BY message LIKE 'fetched:%' DESC
 ----
 fetched: /t/c_idx/3/b/d -> /2/4
 output row: [1 2 3 4]
@@ -101,7 +101,7 @@ SET tracing = on,kv,results; SELECT a, b, d FROM t@d_idx; SET tracing = off
 
 query T
 SELECT message FROM [SHOW KV TRACE FOR SESSION]
- WHERE message LIKE 'fetched:%' OR message LIKE 'output row%'
+ WHERE message LIKE 'fetched:%' OR message LIKE 'output row%' ORDER BY message LIKE 'fetched:%' DESC
 ----
 fetched: /t/d_idx/4/1/b -> /2
 output row: [1 2 4]
@@ -114,7 +114,7 @@ SET tracing = on,kv,results; SELECT a, b FROM t@a_idx; SET tracing = off
 
 query T
 SELECT message FROM [SHOW KV TRACE FOR SESSION]
- WHERE message LIKE 'fetched:%' OR message LIKE 'output row%'
+ WHERE message LIKE 'fetched:%' OR message LIKE 'output row%' ORDER BY message LIKE 'fetched:%' DESC
 ----
 fetched: /t/a_idx/1/b -> /2
 output row: [1 2]
@@ -131,13 +131,13 @@ SET tracing = on,kv,results; SELECT * FROM t@b_idx; SET tracing = off
 
 query T
 SELECT message FROM [SHOW KV TRACE FOR SESSION]
- WHERE message LIKE 'fetched:%' OR message LIKE 'output row%'
+ WHERE message LIKE 'fetched:%' OR message LIKE 'output row%' ORDER BY message LIKE 'fetched:%' DESC
 ----
 fetched: /t/b_idx/NULL/2 -> NULL
-output row: [2 NULL NULL NULL]
 fetched: /t/b_idx/NULL/3 -> NULL
-output row: [3 NULL NULL NULL]
 fetched: /t/b_idx/2/1/c/d -> /3/4
+output row: [2 NULL NULL NULL]
+output row: [3 NULL NULL NULL]
 output row: [1 2 3 4]
 
 # Regression test for #14601.
@@ -270,7 +270,7 @@ SET tracing = on,kv,results; SELECT * FROM dt WHERE a = '2015-08-25 04:45:45.534
 
 query T
 SELECT message FROM [SHOW KV TRACE FOR SESSION]
- WHERE message LIKE 'fetched:%' OR message LIKE 'output row%'
+ WHERE message LIKE 'fetched:%' OR message LIKE 'output row%' ORDER BY message LIKE 'fetched:%' DESC
 ----
 fetched: /dt/primary/'2015-08-25 04:45:45.53453+00:00' -> NULL
 fetched: /dt/primary/'2015-08-25 04:45:45.53453+00:00'/b -> '2015-08-25'
@@ -282,7 +282,7 @@ SET tracing = on,kv,results; SELECT b FROM dt WHERE b < '2015-08-29'::date; SET 
 
 query T
 SELECT message FROM [SHOW KV TRACE FOR SESSION]
- WHERE message LIKE 'fetched:%' OR message LIKE 'output row%'
+ WHERE message LIKE 'fetched:%' OR message LIKE 'output row%' ORDER BY message LIKE 'fetched:%' DESC
 ----
 fetched: /dt/dt_b_key/'2015-08-25' -> /'2015-08-25 04:45:45.53453+00:00'
 output row: ['2015-08-25']
@@ -292,11 +292,11 @@ SET tracing = on,kv,results; SELECT c FROM dt WHERE c < '234h45m2s234ms'::interv
 
 query T
 SELECT message FROM [SHOW KV TRACE FOR SESSION]
- WHERE message LIKE 'fetched:%' OR message LIKE 'output row%'
+ WHERE message LIKE 'fetched:%' OR message LIKE 'output row%' ORDER BY message LIKE 'fetched:%' DESC
 ----
 fetched: /dt/dt_c_key/'02:45:02.234' -> /'2015-08-25 04:45:45.53453+00:00'
-output row: ['02:45:02.234']
 fetched: /dt/dt_c_key/'34:00:02' -> /'2015-08-30 03:34:45.34567+00:00'
+output row: ['02:45:02.234']
 output row: ['34:00:02']
 
 # ------------------------------------------------------------------------------
@@ -350,13 +350,13 @@ SET tracing = on,kv,results; SELECT * FROM c@b_idx; SET tracing = off
 
 query T
 SELECT message FROM [SHOW KV TRACE FOR SESSION]
- WHERE message LIKE 'fetched:%' OR message LIKE 'output row%'
+ WHERE message LIKE 'fetched:%' OR message LIKE 'output row%' ORDER BY message LIKE 'fetched:%' DESC
 ----
 fetched: /c/b_idx/NULL/2 -> NULL
-output row: [2 NULL]
 fetched: /c/b_idx/NULL/3 -> NULL
-output row: [3 NULL]
 fetched: /c/b_idx/0.4/1/b -> /0.40
+output row: [2 NULL]
+output row: [3 NULL]
 output row: [1 0.40]
 
 # ------------------------------------------------------------------------------

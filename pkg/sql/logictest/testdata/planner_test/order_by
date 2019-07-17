@@ -208,13 +208,13 @@ SET tracing = on,kv,results; SELECT * FROM abc ORDER BY a; SET tracing = off
 
 query T
 SELECT message FROM [SHOW KV TRACE FOR SESSION]
- WHERE message LIKE 'fetched:%' OR message LIKE 'output row%'
+ WHERE message LIKE 'fetched:%' OR message LIKE 'output row%' ORDER BY message LIKE 'fetched:%' DESC
 ----
 fetched: /abc/primary/1/2/3 -> NULL
 fetched: /abc/primary/1/2/3/d -> 'one'
-output row: [1 2 3 'one']
 fetched: /abc/primary/4/5/6 -> NULL
 fetched: /abc/primary/4/5/6/d -> 'Two'
+output row: [1 2 3 'one']
 output row: [4 5 6 'Two']
 
 statement ok
@@ -222,11 +222,11 @@ SET tracing = on,kv,results; SELECT a, b FROM abc ORDER BY b, a; SET tracing = o
 
 query T
 SELECT message FROM [SHOW KV TRACE FOR SESSION]
- WHERE message LIKE 'fetched:%' OR message LIKE 'output row%'
+ WHERE message LIKE 'fetched:%' OR message LIKE 'output row%' ORDER BY message LIKE 'fetched:%' DESC
 ----
 fetched: /abc/ba/2/1/3 -> NULL
-output row: [1 2]
 fetched: /abc/ba/5/4/6 -> NULL
+output row: [1 2]
 output row: [4 5]
 
 # The non-unique index ba includes column c (required to make the keys unique)
@@ -310,11 +310,11 @@ SET tracing = on,kv,results; SELECT b, c FROM abc ORDER BY b, c; SET tracing = o
 
 query T
 SELECT message FROM [SHOW KV TRACE FOR SESSION]
- WHERE message LIKE 'fetched:%' OR message LIKE 'output row%'
+ WHERE message LIKE 'fetched:%' OR message LIKE 'output row%' ORDER BY message LIKE 'fetched:%' DESC
 ----
 fetched: /abc/bc/2/3 -> /1
-output row: [2 3]
 fetched: /abc/bc/5/6 -> /4
+output row: [2 3]
 output row: [5 6]
 
 statement ok
@@ -322,11 +322,11 @@ SET tracing = on,kv,results; SELECT a, b, c FROM abc ORDER BY b; SET tracing = o
 
 query T
 SELECT message FROM [SHOW KV TRACE FOR SESSION]
- WHERE message LIKE 'fetched:%' OR message LIKE 'output row%'
+ WHERE message LIKE 'fetched:%' OR message LIKE 'output row%' ORDER BY message LIKE 'fetched:%' DESC
 ----
 fetched: /abc/bc/2/3 -> /1
-output row: [1 2 3]
 fetched: /abc/bc/5/6 -> /4
+output row: [1 2 3]
 output row: [4 5 6]
 
 statement ok
@@ -334,13 +334,13 @@ SET tracing = on,kv,results; SELECT a FROM abc ORDER BY a DESC; SET tracing = of
 
 query T
 SELECT message FROM [SHOW KV TRACE FOR SESSION]
- WHERE message LIKE 'fetched:%' OR message LIKE 'output row%'
+ WHERE message LIKE 'fetched:%' OR message LIKE 'output row%' ORDER BY message LIKE 'fetched:%' DESC
 ----
 fetched: /abc/primary/4/5/6/d -> 'Two'
 fetched: /abc/primary/4/5/6 -> NULL
-output row: [4]
 fetched: /abc/primary/1/2/3/d -> 'one'
 fetched: /abc/primary/1/2/3 -> NULL
+output row: [4]
 output row: [1]
 
 query TTT
