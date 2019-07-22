@@ -496,7 +496,7 @@ func newColOperator(
 		columnTypes = append(spec.Input[0].ColumnTypes, *semtypes.Int)
 
 	default:
-		return nil, nil, memUsage, errors.Newf("unsupported processor core %s", core)
+		return nil, nil, memUsage, errors.Newf("unsupported processor core %s", strings.TrimpSpace(core.String()))
 	}
 
 	// After constructing the base operator, calculate the memory usage
