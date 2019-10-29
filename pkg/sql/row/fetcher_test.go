@@ -94,6 +94,146 @@ type fetcherEntryArgs struct {
 	genValue         sqlutils.GenRowFn
 }
 
+func TestPrimaryKeySwitch(t *testing.T) {
+	defer leaktest.AfterTest(t)()
+	ctx := context.Background()
+
+	s, sqlDB, kvDB := serverutils.StartServer(t, base.TestServerArgs{})
+	defer s.Stopper().Stop(ctx)
+
+	tests := []struct {
+		fetcherArgs fetcherEntryArgs
+	}{
+		{
+			fetcherArgs: fetcherEntryArgs{
+				tableName: "t1",
+				nRows:     10,
+				nCols:     2,
+				schema:    "k INT PRIMARY KEY, v INT, INDEX i (k) STORING (v)",
+				genValue:  sqlutils.ToRowFn(sqlutils.RowIdxFn, sqlutils.RowModuloFn(10)),
+			},
+		},
+		{
+			fetcherArgs: fetcherEntryArgs{
+				tableName: "t2",
+				schema:    "k INT, v INT, w INT, z INT, PRIMARY KEY (k, v), INDEX i (k, v) STORING (w, z)",
+				nRows:     10,
+				nCols:     4,
+				genValue: sqlutils.ToRowFn(
+					sqlutils.RowIdxFn,
+					sqlutils.RowModuloFn(10),
+					sqlutils.RowIdxFn,
+					sqlutils.RowModuloFn(10),
+				),
+			},
+		},
+		{
+			fetcherArgs: fetcherEntryArgs{
+				tableName: "t3",
+				schema:    "k INT, v INT, w INT, z INT, PRIMARY KEY (k, v), INDEX i (k, v) STORING (w, z), FAMILY (k, v), FAMILY (w), FAMILY(z)",
+				nRows:     10,
+				nCols:     4,
+				genValue: sqlutils.ToRowFn(
+					sqlutils.RowIdxFn,
+					sqlutils.RowModuloFn(10),
+					sqlutils.RowIdxFn,
+					sqlutils.RowModuloFn(10),
+				),
+			},
+		},
+		{
+			fetcherArgs: fetcherEntryArgs{
+				tableName: "t4",
+				schema: "k STRING, v STRING, PRIMARY KEY (k), UNIQUE INDEX i (k) STORING (v), FAMILY (k), FAMILY (v)",
+				nRows: 9,
+				nCols: 2,
+				genValue:sqlutils.ToRowFn(
+					func(row int) tree.Datum {
+						return tree.NewDString(fmt.Sprintf("hello%d", row))
+					},
+					func(row int) tree.Datum {
+						return tree.NewDString("world")
+					},
+				),
+			},
+		},
+	}
+	alloc := &sqlbase.DatumAlloc{}
+	for _, test := range tests {
+		fetcherArgs := test.fetcherArgs
+		sqlutils.CreateTable(
+			t,
+			sqlDB,
+			fetcherArgs.tableName,
+			fetcherArgs.schema,
+			fetcherArgs.nRows,
+			fetcherArgs.genValue,
+		)
+		tableDesc := sqlbase.GetImmutableTableDescriptor(kvDB, sqlutils.TestDB, fetcherArgs.tableName)
+		var valNeededForCol util.FastIntSet
+		valNeededForCol.AddRange(0, fetcherArgs.nCols - 1)
+		runTest := func(t *testing.T, args FetcherTableArgs) {
+			fetcher := &Fetcher{}
+			if err := fetcher.Init(false, false, false, alloc, args); err != nil {
+				t.Fatal(err)
+			}
+			if err := fetcher.StartScan(
+				ctx, client.NewTxn(ctx, kvDB, 0, client.RootTxn),
+				roachpb.Spans{tableDesc.IndexSpan(args.Index.ID)},
+				false,
+				0,
+				false,
+			); err != nil {
+				t.Fatal(err)
+			}
+			count := 1
+			evalCtx := &tree.EvalContext{}
+			for {
+				datums, _, _, err := fetcher.NextRowDecoded(ctx)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if datums == nil {
+					break
+				}
+				expected := fetcherArgs.genValue(count)
+				for i, d := range datums {
+					if expected[i].Compare(evalCtx, d) != 0 {
+						t.Fatalf("unexpected value for row %d, col %d.\nexpected: %s\nactual: %s", count, i, expected[i], d)
+					}
+				}
+				count++
+			}
+		}
+		t.Run(fetcherArgs.tableName+"secondary->primary", func(t *testing.T) {
+			args := FetcherTableArgs{
+				Desc: tableDesc,
+				// Give it the secondary index and pretend its a primary index.
+				Index:            &tableDesc.Indexes[0],
+				ColIdxMap:        tableDesc.ColumnIdxMap(),
+				IsSecondaryIndex: false,
+				Cols:             tableDesc.Columns,
+				ValNeededForCol:  valNeededForCol,
+			}
+			runTest(t, args)
+		})
+		t.Run(fetcherArgs.tableName+"primary->secondary", func(t *testing.T) {
+			tableDesc.PrimaryIndex.StoreColumnIDs = tableDesc.Indexes[0].StoreColumnIDs
+			tableDesc.PrimaryIndex.StoreColumnNames = tableDesc.Indexes[0].StoreColumnNames
+			args := FetcherTableArgs{
+				Desc: tableDesc,
+				// Give it the primary index and pretend its a secondary index.
+				Index:            &tableDesc.PrimaryIndex,
+				ColIdxMap:        tableDesc.ColumnIdxMap(),
+				IsSecondaryIndex: true,
+				Cols:             tableDesc.Columns,
+				ValNeededForCol:  valNeededForCol,
+			}
+			runTest(t, args)
+		})
+	}
+}
+
 func TestNextRowSingle(t *testing.T) {
 	defer leaktest.AfterTest(t)()
 	ctx := context.Background()

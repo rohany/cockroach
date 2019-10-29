@@ -884,8 +884,7 @@ func (rf *Fetcher) processKV(
 		//
 		// In these cases, the correct value will be present in family 0 and the
 		// table.row value gets overwritten.
-
-		switch kv.Value.GetTag() {
+		switch tag := kv.Value.GetTag(); tag {
 		case roachpb.ValueType_TUPLE:
 			// In this case, we don't need to decode the column family ID, because
 			// the ValueType_TUPLE encoding includes the column id with every encoded
@@ -897,13 +896,28 @@ func (rf *Fetcher) processKV(
 			if err != nil {
 				return "", "", scrub.WrapError(scrub.IndexKeyDecodingError, err)
 			}
-
 			var family *sqlbase.ColumnFamilyDescriptor
 			family, err = table.desc.FindFamilyByID(sqlbase.FamilyID(familyID))
 			if err != nil {
 				return "", "", scrub.WrapError(scrub.IndexKeyDecodingError, err)
 			}
 
+			// TODO (rohany): this code assumes that a primary index column family 0 CANNOT
+			//  use the single-column column family value encoding.
+			if tag == roachpb.ValueType_BYTES && table.desc.FormatVersion != sqlbase.BaseFormatVersion && familyID == 0 {
+				valueBytes, err := kv.Value.GetBytes()
+				if err != nil {
+					return "", "", scrub.WrapError(scrub.IndexValueDecodingError, err)
+				}
+				prettyKey, prettyValue, err = rf.processValueBytes(
+					ctx, table, kv, valueBytes, prettyKey,
+				)
+				if err != nil {
+					return "", "", scrub.WrapError(scrub.IndexValueDecodingError, err)
+				}
+				break
+			}
+			fmt.Println(kv.Key, "decoding as single value!")
 			prettyKey, prettyValue, err = rf.processValueSingle(ctx, table, family, kv, prettyKey)
 		}
 		if err != nil {
@@ -914,6 +928,27 @@ func (rf *Fetcher) processKV(
 		var valueBytes []byte
 		switch tag {
 		case roachpb.ValueType_BYTES:
+
+			// TODO (rohany): this code assumes that a primary index column family 0 CANNOT
+			//  use the single-column column family value encoding.
+			var familyID uint64
+			_, familyID, err = encoding.DecodeUvarintAscending(rf.keyRemainingBytes)
+			if err != nil {
+				return "", "", scrub.WrapError(scrub.IndexKeyDecodingError, err)
+			}
+			if familyID != 0 {
+				var family *sqlbase.ColumnFamilyDescriptor
+				family, err = table.desc.FindFamilyByID(sqlbase.FamilyID(familyID))
+				if err != nil {
+					return "", "", scrub.WrapError(scrub.IndexKeyDecodingError, err)
+				}
+				prettyKey, prettyValue, err = rf.processValueSingle(ctx, table, family, kv, prettyKey)
+				if err != nil {
+					return "", "", scrub.WrapError(scrub.IndexKeyDecodingError, err)
+				}
+				break
+			}
+
 			// If we have the ValueType_BYTES on a secondary index, then we know we
 			// are looking at column family 0. Column family 0 stores the extra primary
 			// key columns if they are present, so we decode them here.
@@ -947,6 +982,22 @@ func (rf *Fetcher) processKV(
 			valueBytes, err = kv.Value.GetTuple()
 			if err != nil {
 				return "", "", scrub.WrapError(scrub.IndexValueDecodingError, err)
+			}
+		default:
+			// TODO (rohany): pull this out into a helper function?
+			var familyID uint64
+			_, familyID, err = encoding.DecodeUvarintAscending(rf.keyRemainingBytes)
+			if err != nil {
+				return "", "", scrub.WrapError(scrub.IndexKeyDecodingError, err)
+			}
+			var family *sqlbase.ColumnFamilyDescriptor
+			family, err = table.desc.FindFamilyByID(sqlbase.FamilyID(familyID))
+			if err != nil {
+				return "", "", scrub.WrapError(scrub.IndexKeyDecodingError, err)
+			}
+			prettyKey, prettyValue, err = rf.processValueSingle(ctx, table, family, kv, prettyKey)
+			if err != nil {
+				return "", "", scrub.WrapError(scrub.IndexKeyDecodingError, err)
 			}
 		}
 
