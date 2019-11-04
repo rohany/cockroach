@@ -276,6 +276,8 @@ func writeDescToBatch(
 		if didDowngrade {
 			desc = downgraded
 		}
+		// TODO (rohany): get rid of this copy
+		desc = downgraded.MaybeDowngradeIndexRepresentation()
 	}
 	descKey := sqlbase.MakeDescMetadataKey(descID)
 	descDesc := sqlbase.WrapDescriptor(desc)
@@ -316,6 +318,8 @@ func WriteNewDescToBatch(
 		if didDowngrade {
 			desc = downgraded
 		}
+		// TODO (rohany): get rid of this copy
+		desc = downgraded.MaybeDowngradeIndexRepresentation()
 	}
 	descKey := sqlbase.MakeDescMetadataKey(tableID)
 	descDesc := sqlbase.WrapDescriptor(desc)

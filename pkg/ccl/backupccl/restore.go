@@ -1208,6 +1208,8 @@ func restore(
 		if err != nil {
 			return mu.res, errors.NewAssertionErrorWithWrappedErrf(err, "downgrading table %d", tables[i].ID)
 		}
+		// TODO (rohany): avoid a copy that this is doing
+		newDesc = newDesc.MaybeDowngradeIndexRepresentation()
 		tableToSerialize := tables[i]
 		if downgraded {
 			tableToSerialize = newDesc
@@ -1557,6 +1559,8 @@ func doRestorePlan(
 		if downgraded {
 			tables[i] = newDesc
 		}
+		// TODO (rohany): avoid the second copy
+		tables[i] = newDesc.MaybeDowngradeIndexRepresentation()
 	}
 
 	_, errCh, err := p.ExecCfg().JobRegistry.StartJob(ctx, resultsCh, jobs.Record{

@@ -759,6 +759,7 @@ func (desc *TableDescriptor) MaybeFillInDescriptor(
 ) error {
 	desc.maybeUpgradeFormatVersion()
 	desc.Privileges.MaybeFixPrivileges(desc.ID)
+	desc.MaybeUpgradeIndexRepresentation()
 	if protoGetter != nil {
 		if _, err := desc.MaybeUpgradeForeignKeyRepresentation(ctx, protoGetter, false /* skipFKsWithNoMatchingTable*/); err != nil {
 			return err
@@ -795,6 +796,42 @@ func (m MapProtoGetter) GetProtoTs(
 	ctx context.Context, key interface{}, msg protoutil.Message,
 ) (hlc.Timestamp, error) {
 	return hlc.Timestamp{}, m.getProto(ctx, key, msg)
+}
+
+func (desc *TableDescriptor) MaybeUpgradeIndexRepresentation() {
+	desc.PrimaryIndex.MaybeUpgradePrimaryIndexRepresentation(desc)
+}
+
+func (desc *IndexDescriptor) MaybeUpgradePrimaryIndexRepresentation(tableDesc *TableDescriptor) {
+	desc.ExtraColumnIDs = nil
+	desc.StoreColumnIDs = make([]ColumnID, len(tableDesc.Columns) - len(desc.ColumnIDs), 0)
+	desc.StoreColumnNames = make([]string, len(tableDesc.Columns) - len(desc.ColumnIDs), 0)
+	for _, col := range tableDesc.Columns {
+		inIndex := false
+		for _, idxCol := range desc.ColumnIDs {
+			if col.ID == idxCol {
+				inIndex = true
+				break
+			}
+		}
+		if !inIndex {
+			desc.StoreColumnIDs = append(desc.StoreColumnIDs, col.ID)
+			desc.StoreColumnNames = append(desc.StoreColumnNames, col.Name)
+		}
+	}
+}
+
+func (desc *TableDescriptor) MaybeDowngradeIndexRepresentation() *TableDescriptor {
+	cloned := protoutil.Clone(desc).(*TableDescriptor)
+	cloned.PrimaryIndex = *desc.PrimaryIndex.MaybeDowngradePrimaryIndexRepresentation()
+	return cloned
+}
+
+func (desc *IndexDescriptor) MaybeDowngradePrimaryIndexRepresentation() *IndexDescriptor {
+	cloned := protoutil.Clone(desc).(*IndexDescriptor)
+	cloned.StoreColumnIDs = nil
+	cloned.StoreColumnNames = nil
+	return cloned
 }
 
 // MaybeUpgradeForeignKeyRepresentation destructively modifies the input table

@@ -1567,6 +1567,8 @@ func maybeDowngradeTableDescsInBackupDescriptor(
 			if downgraded {
 				backupDescCopy.Descriptors[i] = *sqlbase.WrapDescriptor(newDesc)
 			}
+			// TODO (rohany): avoid having to make another copy here?
+			backupDescCopy.Descriptors[i] = *sqlbase.WrapDescriptor(newDesc.MaybeDowngradeIndexRepresentation())
 		}
 	}
 	return backupDescCopy, nil
@@ -1603,6 +1605,7 @@ func maybeUpgradeTableDescsInBackupDescriptors(
 				if _, err := table.MaybeUpgradeForeignKeyRepresentation(ctx, protoGetter, skipFKsWithNoMatchingTable); err != nil {
 					return err
 				}
+				table.MaybeUpgradeIndexRepresentation()
 				// TODO(lucy): Is this necessary?
 				backupDesc.Descriptors[j] = *sqlbase.WrapDescriptor(table)
 			}
