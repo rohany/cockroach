@@ -1,0 +1,10 @@
+# LogicTest: local
+
+statement ok
+create table t (x int primary key, y int)
+
+statement ok
+create table t2 (x int, y int, z int, primary key (x, y), index i (z))
+
+statement ok
+create table t3 (x int)
