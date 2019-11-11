@@ -246,6 +246,18 @@ message CreateStatsProgress {
 
 }
 
+// AlterPrimaryKeyDetails are used for the AlterPrimaryKey job, which is triggered
+// by an ALTER PRINARY KEY SQL statement.
+message AlterPrimaryKeyDetails {
+  uint32 tableID = 1 [(gogoproto.casttype) = "github.com/cockroachdb/cockroach/pkg/sql/sqlbase.ID"];
+  uint32 newPkIndexID = 2 [(gogoproto.casttype) = "github.com/cockroachdb/cockroach/pkg/sql/sqlbase.IndexID"];
+  repeated uint32 indexesToRewrite = 3 [(gogoproto.casttype) = "github.com/cockroachdb/cockroach/pkg/sql/sqlbase.IndexID"];
+}
+
+message AlterPrimaryKeyProgress {
+
+}
+
 message Payload {
   string description = 1;
   // If empty, the description is assumed to be the statement.
@@ -271,6 +283,7 @@ message Payload {
     ImportDetails import = 13;
     ChangefeedDetails changefeed = 14;
     CreateStatsDetails createStats = 15;
+    AlterPrimaryKeyDetails alterPrimaryKey = 17;
   }
 }
 
@@ -289,6 +302,7 @@ message Progress {
     ImportProgress import = 13;
     ChangefeedProgress changefeed = 14;
     CreateStatsProgress createStats = 15;
+    AlterPrimaryKeyProgress alterPrimaryKey = 16;
   }
 }
 
@@ -304,4 +318,5 @@ enum Type {
   CHANGEFEED = 5 [(gogoproto.enumvalue_customname) = "TypeChangefeed"];
   CREATE_STATS = 6 [(gogoproto.enumvalue_customname) = "TypeCreateStats"];
   AUTO_CREATE_STATS = 7 [(gogoproto.enumvalue_customname) = "TypeAutoCreateStats"];
+  ALTER_PRIMARY_KEY = 8 [(gogoproto.enumvalue_customname) = "TypeAlterPrimaryKey"];
 }

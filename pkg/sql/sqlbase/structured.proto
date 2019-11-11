@@ -488,7 +488,7 @@ message DescriptorMutation {
   optional bool rollback = 7 [(gogoproto.nullable) = false];
 }
 
-// A TableDescriptor represents a table or view and is stored in a
+// A TableDescriptorI represents a table or view and is stored in a
 // structured metadata key. The TableDescriptor has a globally-unique ID,
 // while its member {Column,Index}Descriptors have locally-unique IDs.
 message TableDescriptor {

@@ -26,6 +26,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/sqlbase"
 	"github.com/cockroachdb/cockroach/pkg/sql/stats"
 	"github.com/cockroachdb/cockroach/pkg/sql/types"
+	"github.com/cockroachdb/cockroach/pkg/util"
 	"github.com/cockroachdb/cockroach/pkg/util/errorutil/unimplemented"
 	"github.com/cockroachdb/cockroach/pkg/util/protoutil"
 	"github.com/cockroachdb/errors"
@@ -302,7 +303,107 @@ func (n *alterTableNode) startExec(params runParams) error {
 			}
 
 		case *tree.AlterTableAlterPrimaryKey:
-			return unimplemented.NewWithIssue(19141, "primary key changes are unsupported")
+			indexDesc, dropped, err := n.tableDesc.FindIndexByName(string(t.TableIndex.Index))
+			if err != nil {
+				return err
+			}
+			if dropped {
+				return errors.New("cannot switch primary key to index that is being deleted")
+			}
+
+			// Verify that this is a valid index to switch to.
+			if !indexDesc.Unique {
+				return errors.New("target index must be unique")
+			}
+			if indexDesc.Type == sqlbase.IndexDescriptor_INVERTED {
+				return errors.New("target index cannot be inverted")
+			}
+
+			if err := n.tableDesc.ForeachNonDropIndex(func(i *sqlbase.IndexDescriptor) error {
+				if len(i.InterleavedBy) != 0 || len(i.Interleave.Ancestors) != 0 {
+					return errors.New("table being altered cannot have interleaved children or be interleaved")
+				}
+				return nil
+			}); err != nil {
+				return err
+			}
+
+			colMap := n.tableDesc.ColumnIdxMap()
+			var storedOrIndexedColumns util.FastIntSet
+
+			for _, colID := range indexDesc.ColumnIDs {
+				column := &n.tableDesc.Columns[colMap[colID]]
+				if column.Nullable {
+					return errors.New("target index cannot have a nullable column")
+				}
+				storedOrIndexedColumns.Add(int(colID))
+			}
+			for _, colID := range indexDesc.StoreColumnIDs {
+				storedOrIndexedColumns.Add(int(colID))
+			}
+
+			// The index must store or index all columns in the table.
+			for i := range n.tableDesc.Columns {
+				if !storedOrIndexedColumns.Contains(int(n.tableDesc.Columns[i].ID)) {
+					return errors.Errorf("cannot switch primary key: column %s is not stored or indexed", n.tableDesc.Columns[i].Name)
+				}
+			}
+
+			// Rewrite all indexes that are inverted, non-unique, or don't store/index all columns
+			// in the new proposed index.
+			shouldRewriteIndex := func(idx *sqlbase.IndexDescriptor) bool {
+				result := false
+				for _, colID := range indexDesc.ColumnIDs {
+					if !idx.ContainsColumnID(colID) {
+						result = true
+						break
+					}
+				}
+				return result || !idx.Unique || idx.Type == sqlbase.IndexDescriptor_INVERTED
+			}
+			var indexesToRewrite []sqlbase.IndexID
+			for i := range n.tableDesc.Indexes {
+				idx := &n.tableDesc.Indexes[i]
+				if idx.ID != indexDesc.ID && shouldRewriteIndex(idx) {
+					indexesToRewrite = append(indexesToRewrite, idx.ID)
+				}
+			}
+
+			alterPrimaryKeyArgs := &alterPrimaryKeyJobArgs{
+				table:            n.tableDesc.ID,
+				newPrimaryKey:    indexDesc.ID,
+				indexesToRewrite: indexesToRewrite,
+			}
+			err = startAlterPrimaryKeyJob(params.ctx, params.p, alterPrimaryKeyArgs)
+			if err != nil {
+				return err
+			}
+
+			// Update the primary index to a valid secondary index definition.
+			// TODO (rohany): I think this just involves updating the stored column id's / names.
+			//storedColumnIDs := make(sqlbase.ColumnIDs, 0, len(n.tableDesc.Columns)-len(n.tableDesc.PrimaryIndex.ColumnIDs))
+			//storedColumnNames := make([]string, 0, len(storedColumnIDs))
+			//for i := range n.tableDesc.Columns {
+			//	col := &n.tableDesc.Columns[i]
+			//	storedColumnIDs = append(storedColumnIDs, col.ID)
+			//	storedColumnNames = append(storedColumnNames, col.Name)
+			//}
+			//n.tableDesc.PrimaryIndex.StoreColumnIDs = storedColumnIDs
+			//n.tableDesc.PrimaryIndex.StoreColumnNames = storedColumnNames
+			//n.tableDesc.PrimaryIndex.ExtraColumnIDs = nil
+			//
+			//// TODO (rohany): this change/write needs to only get triggered once some
+			////  of the secondary indexes get fully rewritten.
+			//// Actually switch the indexes.
+			//primaryIndexCopy := protoutil.Clone(&n.tableDesc.PrimaryIndex).(*sqlbase.IndexDescriptor)
+			//n.tableDesc.PrimaryIndex = *indexDesc
+			//for i := range n.tableDesc.Indexes {
+			//	if n.tableDesc.Indexes[i].ID == indexDesc.ID {
+			//		n.tableDesc.Indexes[i] = *primaryIndexCopy
+			//		break
+			//	}
+			//}
+			//descriptorChanged = true
 
 		case *tree.AlterTableDropColumn:
 			if params.SessionData().SafeUpdates {
