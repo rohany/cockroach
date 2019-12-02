@@ -12,6 +12,7 @@ package mutations
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"strings"
 
@@ -29,6 +30,10 @@ var (
 	// ColumnFamilyMutator modifies a CREATE TABLE statement without any FAMILY
 	// definitions to have random FAMILY definitions.
 	ColumnFamilyMutator StatementMutator = columnFamilyMutator
+
+	// AlterPrimaryKeyMutator adds ALTER TABLE ALTER PRIMARY KEY statements to some
+	// CREATE TABLE statements.
+	AlterPrimaryKeyMutator MultiStatementMutation = alterPrimaryKeyMutator
 )
 
 // StatementMutator defines a func that can change a statement.
@@ -172,6 +177,41 @@ func statisticsMutator(rng *rand.Rand, stmts []tree.Statement) (additional []tre
 				Stats: tree.NewDString(string(b)),
 			})
 			additional = append(additional, alter)
+		}
+	}
+	return additional
+}
+
+func alterPrimaryKeyMutator(rng *rand.Rand, stmts []tree.Statement) (additional []tree.Statement) {
+	for _, stmt := range stmts {
+		table, ok := stmt.(*tree.CreateTable)
+		if !ok {
+			continue
+		}
+		if rng.Intn(2) == 0 {
+			// TODO (rohany): this syntax is still set up to take in a table index name,
+			//  but we will be changing this to take in columns.
+			alterPk := &tree.AlterTableAlterPrimaryKey{}
+			for _, def := range table.Defs {
+				switch d := def.(type) {
+				case *tree.UniqueConstraintTableDef:
+					if d.PrimaryKey {
+						// TODO (rohany): once we change the primary key syntax, uncomment this
+						// alterPk.Columns = d.Columns
+						fmt.Println("using the columns", d.Columns)
+					}
+				}
+			}
+			// TODO (rohany): uncomment this.
+			// If there are no columns in the primary key, skip this table.
+			// if len(alterPk.Columns) == 0 {
+			//   continue
+			// }
+			newStmt := &tree.AlterTable{
+				Table: table.Table.ToUnresolvedObjectName(),
+				Cmds:  tree.AlterTableCmds{alterPk},
+			}
+			additional = append(additional, newStmt)
 		}
 	}
 	return additional
