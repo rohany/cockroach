@@ -35,7 +35,6 @@ type SpanBuilder struct {
 	// TODO (rohany): The interstices are used to convert opt constraints into spans. In future work,
 	//  we should unify the codepaths and use the allocation free method used on datums.
 	//  This work is tracked in #42738.
-	interstices [][]byte
 
 	neededFamilies []sqlbase.FamilyID
 }
@@ -50,7 +49,6 @@ func MakeSpanBuilder(table *sqlbase.TableDescriptor, index *sqlbase.IndexDescrip
 		table:          table,
 		index:          index,
 		keyPrefix:      sqlbase.MakeIndexKeyPrefix(table, index.ID),
-		interstices:    make([][]byte, len(index.ColumnDirections)+len(index.ExtraColumnIDs)+1),
 		neededFamilies: nil,
 	}
 
@@ -67,29 +65,33 @@ func MakeSpanBuilder(table *sqlbase.TableDescriptor, index *sqlbase.IndexDescrip
 		}
 	}
 
-	// Set up the interstices for encoding interleaved tables later.
-	s.interstices[0] = sqlbase.MakeIndexKeyPrefix(table, index.ID)
-	if len(index.Interleave.Ancestors) > 0 {
-		// TODO(rohany): too much of this code is copied from EncodePartialIndexKey.
-		sharedPrefixLen := 0
-		for i, ancestor := range index.Interleave.Ancestors {
-			// The first ancestor is already encoded in interstices[0].
+	return s
+}
+
+func (s *SpanBuilder) appendInterstice(key roachpb.Key, idx int) roachpb.Key {
+	sharedPrefixLen := 0
+	if idx == 0 {
+		key = append(key, s.keyPrefix...)
+	}
+	if len(s.index.Interleave.Ancestors) > 0 {
+		for i, ancestor := range s.index.Interleave.Ancestors {
 			if i != 0 {
-				s.interstices[sharedPrefixLen] =
-					encoding.EncodeUvarintAscending(s.interstices[sharedPrefixLen], uint64(ancestor.TableID))
-				s.interstices[sharedPrefixLen] =
-					encoding.EncodeUvarintAscending(s.interstices[sharedPrefixLen], uint64(ancestor.IndexID))
+				if sharedPrefixLen == idx {
+					key = encoding.EncodeUvarintAscending(key, uint64(ancestor.TableID))
+					key = encoding.EncodeUvarintAscending(key, uint64(ancestor.IndexID))
+				}
 			}
 			sharedPrefixLen += int(ancestor.SharedPrefixLen)
-			s.interstices[sharedPrefixLen] = encoding.EncodeInterleavedSentinel(s.interstices[sharedPrefixLen])
+			if sharedPrefixLen == idx {
+				key = encoding.EncodeInterleavedSentinel(key)
+			}
 		}
-		s.interstices[sharedPrefixLen] =
-			encoding.EncodeUvarintAscending(s.interstices[sharedPrefixLen], uint64(table.ID))
-		s.interstices[sharedPrefixLen] =
-			encoding.EncodeUvarintAscending(s.interstices[sharedPrefixLen], uint64(index.ID))
+		if sharedPrefixLen == idx {
+			key = encoding.EncodeUvarintAscending(key, uint64(s.table.ID))
+			key = encoding.EncodeUvarintAscending(key, uint64(s.index.ID))
+		}
 	}
-
-	return s
+	return key
 }
 
 // SetNeededColumns sets the needed columns on the SpanBuilder. This information
@@ -199,7 +201,7 @@ func (s *SpanBuilder) appendSpansFromConstraintSpan(
 		return nil, err
 	}
 	if cs.StartBoundary() == constraint.IncludeBoundary {
-		span.Key = append(span.Key, s.interstices[cs.StartKey().Length()]...)
+		span.Key = s.appendInterstice(span.Key, cs.StartKey().Length())
 	} else {
 		// We need to exclude the value this logical part refers to.
 		span.Key = span.Key.PrefixEnd()
@@ -209,7 +211,7 @@ func (s *SpanBuilder) appendSpansFromConstraintSpan(
 	if err != nil {
 		return nil, err
 	}
-	span.EndKey = append(span.EndKey, s.interstices[cs.EndKey().Length()]...)
+	span.EndKey = s.appendInterstice(span.EndKey, cs.EndKey().Length())
 
 	// Optimization: for single row lookups on a table with multiple column
 	// families, only scan the relevant column families. This is disabled for
@@ -232,27 +234,15 @@ func (s *SpanBuilder) appendSpansFromConstraintSpan(
 	return append(spans, span), nil
 }
 
-// encodeConstraintKey encodes each logical part of a constraint.Key into a
-// roachpb.Key; interstices[i] is inserted before the i-th value.
+// encodeConstraintKey encodes each logical part of a constraint.Key into a roachpb.Key.
 func (s *SpanBuilder) encodeConstraintKey(ck constraint.Key) (roachpb.Key, error) {
-	var key []byte
-	for i := 0; i < ck.Length(); i++ {
-		val := ck.Value(i)
-		key = append(key, s.interstices[i]...)
-
-		var err error
-		// For extra columns (like implicit columns), the direction
-		// is ascending.
-		dir := encoding.Ascending
-		if i < len(s.index.ColumnDirections) {
-			dir, err = s.index.ColumnDirections[i].ToEncodingDirection()
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if s.index.Type == sqlbase.IndexDescriptor_INVERTED {
-			keys, err := sqlbase.EncodeInvertedIndexTableKeys(val, key)
+	if s.index.Type == sqlbase.IndexDescriptor_INVERTED {
+		var key []byte
+		// TODO (rohany): is it always the case that that an inverted index is not interleaved?
+		//  also, will an inverted index have multiple values???
+		for i := 0; i < ck.Length(); i++ {
+			key = s.appendInterstice(key, i)
+			keys, err := sqlbase.EncodeInvertedIndexTableKeys(ck.Value(i), key)
 			if err != nil {
 				return nil, err
 			}
@@ -261,11 +251,67 @@ func (s *SpanBuilder) encodeConstraintKey(ck constraint.Key) (roachpb.Key, error
 				return nil, err
 			}
 			key = keys[0]
-		} else {
-			key, err = sqlbase.EncodeTableKey(key, val, dir)
+		}
+		return key, nil
+	} else {
+		return s.encodeConstraintKey(ck)
+	}
+}
+
+func (s *SpanBuilder) encodeConstraintKeyNoInterstices(ck constraint.Key) (roachpb.Key, error) {
+	// We know we will append to the key which will cause the capacity to grow
+	// so make it bigger from the get-go.
+	key := make(roachpb.Key, len(s.keyPrefix), len(s.keyPrefix)*2)
+	copy(key, s.keyPrefix)
+
+	startIndex := 0
+	if len(s.index.Interleave.Ancestors) > 0 {
+		for i, ancestor := range s.index.Interleave.Ancestors {
+			// The first ancestor is assumed to already be encoded in keyPrefix.
+			if i != 0 {
+				key = encoding.EncodeUvarintAscending(key, uint64(ancestor.TableID))
+				key = encoding.EncodeUvarintAscending(key, uint64(ancestor.IndexID))
+			}
+			partial := false
+			length := int(ancestor.SharedPrefixLen)
+			if length > ck.Length() {
+				length = ck.Length()
+				partial = true
+			}
+			var err error
+			key, err = s.appendConstraintKey(key, ck, startIndex, length)
 			if err != nil {
 				return nil, err
 			}
+			if partial {
+				// Early stop - the number of desired columns was fewer than the number
+				// left in the current interleave.
+				return key, nil
+			}
+			startIndex += length
+			key = encoding.EncodeInterleavedSentinel(key)
+		}
+		key = encoding.EncodeUvarintAscending(key, uint64(s.table.ID))
+		key = encoding.EncodeUvarintAscending(key, uint64(s.index.ID))
+	}
+	return s.appendConstraintKey(key, ck, startIndex, ck.Length())
+}
+
+func (s *SpanBuilder) appendConstraintKey(
+	key roachpb.Key, ck constraint.Key, start, end int,
+) (roachpb.Key, error) {
+	var err error
+	for i := start; i < end; i++ {
+		dir := encoding.Ascending
+		if i < len(s.index.ColumnDirections) {
+			dir, err = s.index.ColumnDirections[i].ToEncodingDirection()
+			if err != nil {
+				return nil, err
+			}
+		}
+		key, err = sqlbase.EncodeTableKey(key, ck.Value(i), dir)
+		if err != nil {
+			return nil, err
 		}
 	}
 	return key, nil
