@@ -29,8 +29,10 @@ import (
 
 const (
 	bankSchema = `(
-		id INT PRIMARY KEY,
+		id INT,
 		balance INT,
+		PRIMARY KEY (id, balance),
+		UNIQUE INDEX (id),
 		payload STRING,
 		FAMILY (id, balance, payload)
 	)`
