@@ -1301,7 +1301,11 @@ func (c *cliState) doCheckStatement(startState, contState, execState cliStateEnu
 	return nextState
 }
 
+<<<<<<< HEAD
 var metaKeys = []string{"ALTER", "CREATE", "DROP", "COMMIT", "ROLLBACK"}
+=======
+var metaKeys []string = []string{"ALTER", "CREATE", "DROP", "COMMIT", "ROLLBACK"}
+>>>>>>> cli: add basic context insensitive tab completion for the CLI
 
 // queryChangesMeta performs a simple check to see if executing a query
 // would change global schema state, such as adding a table, column etc.
@@ -1433,6 +1437,7 @@ func (c *cliState) initOrRefreshIdentTrie(dbName string) error {
 	// returned to the identTrie. It additionally returns the list of
 	// keys inserted into the trie.
 	runAndAddResultsToTrie := func(query string) (result []string, _ error) {
+<<<<<<< HEAD
 		prevEcho := sqlCtx.echo
 		sqlCtx.echo = false
 		defer func() { sqlCtx.echo = prevEcho }()
@@ -1444,6 +1449,12 @@ func (c *cliState) initOrRefreshIdentTrie(dbName string) error {
 		if err != nil {
 			return result, errors.Wrap(err, "unexpected error while intiializing identifier trie")
 		}
+=======
+		_, rows, err := runQuery(c.conn, makeQuery(query), true)
+		if err != nil {
+			return result, errors.Wrap(err, "unexpected error while initializing indentifier trie")
+		}
+>>>>>>> cli: add basic context insensitive tab completion for the CLI
 		for _, r := range rows {
 			c.identTrie.Add(r[0], nil)
 			result = append(result, r[0])
@@ -1457,8 +1468,18 @@ func (c *cliState) initOrRefreshIdentTrie(dbName string) error {
 		return err
 	}
 
+<<<<<<< HEAD
 	// See if the current dbName is a valid database. We can only get more
 	// identifiers (tables, indexes, columns) if it is.
+=======
+	// Get all tables in scope.
+	if _, err := runAndAddResultsToTrie("SHOW TABLES"); err != nil {
+		return err
+	}
+
+	// See if the current dbName is a valid database. Only if it is can we get indexes
+	// and columns since these queries depend on the database name.
+>>>>>>> cli: add basic context insensitive tab completion for the CLI
 	isValidDB := false
 	for _, db := range dbs {
 		if db == dbName {
@@ -1467,10 +1488,13 @@ func (c *cliState) initOrRefreshIdentTrie(dbName string) error {
 		}
 	}
 	if isValidDB {
+<<<<<<< HEAD
 		// Get all tables in scope.
 		if _, err := runAndAddResultsToTrie("SHOW TABLES"); err != nil {
 			return err
 		}
+=======
+>>>>>>> cli: add basic context insensitive tab completion for the CLI
 		// Get all indexes in scope.
 		indexQuery := fmt.Sprintf("SELECT DISTINCT(index_name) FROM [SHOW INDEXES FROM DATABASE %s]", dbName)
 		if _, err := runAndAddResultsToTrie(indexQuery); err != nil {
