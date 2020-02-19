@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -894,11 +895,27 @@ func (c *cliState) GetCompletions(_ string) []string {
 		fmt.Fprint(c.ins.Stdout(), c.currentPrompt, sql)
 		return nil
 	}
+
 	lastWord := getLastWordFromStmt(sql)
 	if len(lastWord) == 0 {
 		return nil
 	}
-	return c.getCompletionsForWord(lastWord)
+	completions := c.getCompletionsForWord(lastWord)
+	// TODO (rohany): it seems like the mac port for readline does not work
+	//  quite the same way as the linux one. In the linux one, returning
+	//  multiple things from the here seems to mean that: the first word
+	//  returned is the actual last word in the prompt, and the followups
+	//  are the suggestions! On mac, this isn't the case. We might have
+	//  to do a switch here, or maybe just go in and update the mac one :).
+	if runtime.GOOS == "darwin" {
+		return completions
+	} else {
+		if len(completions) == 1 {
+			return completions
+		} else {
+			return append([]string{lastWord}, completions...)
+		}
+	}
 }
 
 func (c *cliState) doStart(nextState cliStateEnum) cliStateEnum {
