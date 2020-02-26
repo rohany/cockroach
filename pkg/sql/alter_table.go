@@ -556,6 +556,31 @@ func (n *alterTableNode) startExec(params runParams) error {
 			}
 			n.tableDesc.AddPrimaryKeySwapMutation(swapArgs)
 
+			// Add staging mutations for all indexes we will delete.
+			// TODO (rohany): comment.
+			if err := n.tableDesc.AddIndexMutation(&n.tableDesc.PrimaryIndex, sqlbase.DescriptorMutation_STAGE); err != nil {
+				return err
+			}
+			for _, idx := range indexesToRewrite {
+				// TODO (rohany): comment.
+				if err := n.tableDesc.AddIndexMutation(idx, sqlbase.DescriptorMutation_STAGE); err != nil {
+					return err
+				}
+			}
+
+			mutationID, err := params.p.createOrUpdateSchemaChangeJob(
+				params.ctx, n.tableDesc, "weija",
+			)
+			if err != nil {
+				return err
+			}
+			if err := params.p.writeSchemaChange(params.ctx, n.tableDesc, mutationID); err != nil {
+				return err
+			}
+			if err := params.p.writeSchemaChange(params.ctx, n.tableDesc, mutationID); err != nil {
+				return err
+			}
+
 			// N.B. We don't schedule index deletions here because the existing indexes need to be visible to the user
 			// until the primary key swap actually occurs. Deletions will get enqueued in the phase when the swap happens.
 

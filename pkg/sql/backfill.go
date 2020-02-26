@@ -1091,7 +1091,7 @@ func (sc *SchemaChanger) validateIndexes(
 			break
 		}
 		idx := m.GetIndex()
-		if idx == nil || m.Direction == sqlbase.DescriptorMutation_DROP {
+		if idx == nil || m.Direction == sqlbase.DescriptorMutation_DROP || m.Direction == sqlbase.DescriptorMutation_STAGE {
 			continue
 		}
 		switch idx.Type {
@@ -1294,6 +1294,7 @@ func (sc *SchemaChanger) validateForwardIndexes(
 			// (the validation can take many minutes). So we pretend that the schema
 			// has been updated and actually update it in a separate transaction that
 			// follows this one.
+			fmt.Println("current index", idx)
 			desc, err := sqlbase.NewImmutableTableDescriptor(*tableDesc).MakeFirstMutationPublic(sqlbase.IgnoreConstraints)
 			if err != nil {
 				return err

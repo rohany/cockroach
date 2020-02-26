@@ -964,6 +964,8 @@ func (sc *SchemaChanger) exec(ctx context.Context, inSession bool) error {
 		return errSchemaChangeNotFirstInLine
 	}
 
+	fmt.Println("THIS IS ME", tableDesc.Mutations, tableDesc.Indexes)
+
 	if tableDesc.HasDrainingNames() {
 		if err := sc.drainNames(ctx); err != nil {
 			return err
@@ -1054,6 +1056,7 @@ func (sc *SchemaChanger) exec(ctx context.Context, inSession bool) error {
 	if !foundJobID {
 		// No job means we've already run and completed this schema change
 		// successfully, so we can just exit.
+		fmt.Println("exiting because we found the schema change")
 		return nil
 	}
 
@@ -1335,6 +1338,8 @@ func (sc *SchemaChanger) done(ctx context.Context) (*sqlbase.ImmutableTableDescr
 		}
 	}
 
+	hasRemainingMutations := false
+
 	update := func(descs map[sqlbase.ID]*sqlbase.MutableTableDescriptor) error {
 		// Reset vars here because update function can be called multiple times in a retry.
 		isRollback = false
@@ -1351,6 +1356,11 @@ func (sc *SchemaChanger) done(ctx context.Context) (*sqlbase.ImmutableTableDescr
 				// mutations if they have the mutation ID we're looking for.
 				break
 			}
+			// Skip staged mutations?
+			if mutation.Direction == sqlbase.DescriptorMutation_STAGE {
+				continue
+			}
+
 			isRollback = mutation.Rollback
 			if indexDesc := mutation.GetIndex(); mutation.Direction == sqlbase.DescriptorMutation_DROP &&
 				indexDesc != nil {
@@ -1415,31 +1425,31 @@ func (sc *SchemaChanger) done(ctx context.Context) (*sqlbase.ImmutableTableDescr
 
 				// If we performed MakeMutationComplete on a PrimaryKeySwap mutation, then we need to start
 				// a job for the index deletion mutations that the primary key swap mutation added, if any.
-				mutationID := scDesc.ClusterVersion.NextMutationID
-				span := scDesc.PrimaryIndexSpan()
-				var spanList []jobspb.ResumeSpanList
-				for j := len(scDesc.ClusterVersion.Mutations); j < len(scDesc.Mutations); j++ {
-					spanList = append(spanList,
-						jobspb.ResumeSpanList{
-							ResumeSpans: roachpb.Spans{span},
-						},
-					)
-				}
-				jobRecord := jobs.Record{
-					Description:   fmt.Sprintf("Cleanup job for '%s'", sc.job.Payload().Description),
-					Username:      sc.job.Payload().Username,
-					DescriptorIDs: sqlbase.IDs{scDesc.GetID()},
-					Details:       jobspb.SchemaChangeDetails{ResumeSpanList: spanList},
-					Progress:      jobspb.SchemaChangeProgress{},
-				}
-				job := sc.jobRegistry.NewJob(jobRecord)
-				if err := job.Created(ctx); err != nil {
-					return err
-				}
-				scDesc.MutationJobs = append(scDesc.MutationJobs, sqlbase.TableDescriptor_MutationJob{
-					MutationID: mutationID,
-					JobID:      *job.ID(),
-				})
+				//mutationID := scDesc.ClusterVersion.NextMutationID
+				//span := scDesc.PrimaryIndexSpan()
+				//var spanList []jobspb.ResumeSpanList
+				//for j := len(scDesc.ClusterVersion.Mutations); j < len(scDesc.Mutations); j++ {
+				//	spanList = append(spanList,
+				//		jobspb.ResumeSpanList{
+				//			ResumeSpans: roachpb.Spans{span},
+				//		},
+				//	)
+				//}
+				//jobRecord := jobs.Record{
+				//	Description:   fmt.Sprintf("Cleanup job for '%s'", sc.job.Payload().Description),
+				//	Username:      sc.job.Payload().Username,
+				//	DescriptorIDs: sqlbase.IDs{scDesc.GetID()},
+				//	Details:       jobspb.SchemaChangeDetails{ResumeSpanList: spanList},
+				//	Progress:      jobspb.SchemaChangeProgress{},
+				//}
+				//job := sc.jobRegistry.NewJob(jobRecord)
+				//if err := job.Created(ctx); err != nil {
+				//	return err
+				//}
+				//scDesc.MutationJobs = append(scDesc.MutationJobs, sqlbase.TableDescriptor_MutationJob{
+				//	MutationID: mutationID,
+				//	JobID:      *job.ID(),
+				//})
 			}
 			i++
 		}
@@ -1451,57 +1461,78 @@ func (sc *SchemaChanger) done(ctx context.Context) (*sqlbase.ImmutableTableDescr
 		// Trim the executed mutations from the descriptor.
 		scDesc.Mutations = scDesc.Mutations[i:]
 
-		for i, g := range scDesc.MutationJobs {
-			if g.MutationID == sc.mutationID {
-				// Trim the executed mutation group from the descriptor.
-				scDesc.MutationJobs = append(scDesc.MutationJobs[:i], scDesc.MutationJobs[i+1:]...)
+		// Move all staged mutations to be real mutations.
+		// TODO (rohany): i'd want to do something specific to pk swap here to know that these
+		//  are index deletions for the pk swap, so its ok to convert them into drops.
+		for i := range scDesc.Mutations {
+			mut := &scDesc.Mutations[i]
+			if mut.MutationID != sc.mutationID {
 				break
+			}
+			if mut.State == sqlbase.DescriptorMutation_STAGING {
+				hasRemainingMutations = true
+				mut.Direction = sqlbase.DescriptorMutation_DROP
+				mut.State = sqlbase.DescriptorMutation_DELETE_AND_WRITE_ONLY
+			}
+		}
+
+		if !hasRemainingMutations {
+			for i, g := range scDesc.MutationJobs {
+				if g.MutationID == sc.mutationID {
+					// Trim the executed mutation group from the descriptor.
+					scDesc.MutationJobs = append(scDesc.MutationJobs[:i], scDesc.MutationJobs[i+1:]...)
+					break
+				}
 			}
 		}
 		return nil
 	}
 
 	descs, err := sc.leaseMgr.PublishMultiple(ctx, tableIDsToUpdate, update, func(txn *client.Txn) error {
-		// If the job already has a terminal status, we shouldn't need to update
-		// its status again. One way this may happen is when a table is dropped
-		// all jobs that mutate that table are marked successful. So if is a job
-		// that mutates a table that is dropped in the same txn, then it will
-		// already be successful. These jobs don't need their status to be updated.
-		if !sc.job.WithTxn(txn).CheckTerminalStatus(ctx) {
-			if jobSucceeded {
-				if err := sc.job.WithTxn(txn).Succeeded(ctx, nil); err != nil {
-					return errors.Wrapf(err,
-						"failed to mark job %d as successful", errors.Safe(*sc.job.ID()))
-				}
-			} else {
-				if err := sc.job.WithTxn(txn).RunningStatus(ctx, func(ctx context.Context, details jobspb.Details) (jobs.RunningStatus, error) {
-					return RunningStatusWaitingGC, nil
-				}); err != nil {
-					return errors.Wrapf(err,
-						"failed to update running status of job %d", errors.Safe(*sc.job.ID()))
+		fmt.Println("HAS REMAINING MUTATIONS", hasRemainingMutations)
+		if !hasRemainingMutations {
+			// If the job already has a terminal status, we shouldn't need to update
+			// its status again. One way this may happen is when a table is dropped
+			// all jobs that mutate that table are marked successful. So if is a job
+			// that mutates a table that is dropped in the same txn, then it will
+			// already be successful. These jobs don't need their status to be updated.
+			if !sc.job.WithTxn(txn).CheckTerminalStatus(ctx) {
+				if jobSucceeded {
+					if err := sc.job.WithTxn(txn).Succeeded(ctx, nil); err != nil {
+						return errors.Wrapf(err,
+							"failed to mark job %d as successful", errors.Safe(*sc.job.ID()))
+					}
+				} else {
+					if err := sc.job.WithTxn(txn).RunningStatus(ctx, func(ctx context.Context, details jobspb.Details) (jobs.RunningStatus, error) {
+						return RunningStatusWaitingGC, nil
+					}); err != nil {
+						return errors.Wrapf(err,
+							"failed to update running status of job %d", errors.Safe(*sc.job.ID()))
+					}
 				}
 			}
-		}
 
-		schemaChangeEventType := EventLogFinishSchemaChange
-		if isRollback {
-			schemaChangeEventType = EventLogFinishSchemaRollback
-		}
+			schemaChangeEventType := EventLogFinishSchemaChange
+			if isRollback {
+				schemaChangeEventType = EventLogFinishSchemaRollback
+			}
 
-		// Log "Finish Schema Change" or "Finish Schema Change Rollback"
-		// event. Only the table ID and mutation ID are logged; this can
-		// be correlated with the DDL statement that initiated the change
-		// using the mutation id.
-		return MakeEventLogger(sc.execCfg).InsertEventRecord(
-			ctx,
-			txn,
-			schemaChangeEventType,
-			int32(sc.tableID),
-			int32(sc.nodeID),
-			struct {
-				MutationID uint32
-			}{uint32(sc.mutationID)},
-		)
+			// Log "Finish Schema Change" or "Finish Schema Change Rollback"
+			// event. Only the table ID and mutation ID are logged; this can
+			// be correlated with the DDL statement that initiated the change
+			// using the mutation id.
+			return MakeEventLogger(sc.execCfg).InsertEventRecord(
+				ctx,
+				txn,
+				schemaChangeEventType,
+				int32(sc.tableID),
+				int32(sc.nodeID),
+				struct {
+					MutationID uint32
+				}{uint32(sc.mutationID)},
+			)
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err

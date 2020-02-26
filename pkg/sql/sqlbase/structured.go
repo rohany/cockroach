@@ -3006,11 +3006,12 @@ func (desc *MutableTableDescriptor) MakeMutationComplete(m DescriptorMutation) e
 					primaryIndexCopy.StoreColumnNames = append(primaryIndexCopy.StoreColumnNames, col.Name)
 				}
 			}
+
 			// Move the old primary index from the table descriptor into the mutations queue
 			// to schedule it for deletion.
-			if err := desc.AddIndexMutation(primaryIndexCopy, DescriptorMutation_DROP); err != nil {
-				return err
-			}
+			//if err := desc.AddIndexMutation(primaryIndexCopy, DescriptorMutation_DROP); err != nil {
+			//	return err
+			//}
 
 			// Promote the new primary index into the primary index position on the descriptor,
 			// and remove it from the secondary indexes list.
@@ -3046,10 +3047,12 @@ func (desc *MutableTableDescriptor) MakeMutationComplete(m DescriptorMutation) e
 				desc.Indexes = append(desc.Indexes[:oldIndexIndex], desc.Indexes[oldIndexIndex+1:]...)
 				// Add a drop mutation for the old index. The code that calls this function will schedule
 				// a schema change job to pick up all of these index drop mutations.
-				if err := desc.AddIndexMutation(oldIndex, DescriptorMutation_DROP); err != nil {
-					return err
-				}
+				//if err := desc.AddIndexMutation(oldIndex, DescriptorMutation_DROP); err != nil {
+				//	return err
+				//}
 			}
+
+			// Flip all staged mutations.
 		}
 
 	case DescriptorMutation_DROP:
@@ -3060,6 +3063,11 @@ func (desc *MutableTableDescriptor) MakeMutationComplete(m DescriptorMutation) e
 		case *DescriptorMutation_Column:
 			desc.RemoveColumnFromFamily(t.Column.ID)
 		}
+
+		// Lets start with assuming that you can't makemutationscomplete on a
+		// staged mutation.
+	case DescriptorMutation_STAGE:
+		return errors.AssertionFailedf("SHOULDNT BE HERE!")
 	}
 	return nil
 }
@@ -3205,6 +3213,9 @@ func (desc *MutableTableDescriptor) addMutation(m DescriptorMutation) {
 
 	case DescriptorMutation_DROP:
 		m.State = DescriptorMutation_DELETE_AND_WRITE_ONLY
+
+	case DescriptorMutation_STAGE:
+		m.State = DescriptorMutation_STAGING
 	}
 	// For tables created in the same transaction the next mutation ID will
 	// not have been allocated and the added mutation will use an invalid ID.
@@ -3242,7 +3253,8 @@ func (desc *ImmutableTableDescriptor) MakeFirstMutationPublic(
 			// of mutations if they have the mutation ID we're looking for.
 			break
 		}
-		if includeConstraints || mutation.GetConstraint() == nil {
+		if includeConstraints || mutation.GetConstraint() == nil && mutation.State != DescriptorMutation_STAGING {
+			fmt.Println("publicising mutation", mutation, mutation.GetIndex(), mutation.State, mutation.Direction)
 			if err := table.MakeMutationComplete(mutation); err != nil {
 				return nil, err
 			}

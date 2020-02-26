@@ -525,6 +525,9 @@ message DescriptorMutation {
     // (column default or index data) can only be backfilled once
     // all nodes have transitioned into the DELETE_AND_WRITE_ONLY state.
     DELETE_AND_WRITE_ONLY = 2;
+    // This mutation has no effect on operations on the table, but instead
+    // represents a schema change to be activated in the future.
+    STAGING = 3;
   }
   optional State state = 3 [(gogoproto.nullable) = false];
 
@@ -536,6 +539,8 @@ message DescriptorMutation {
     ADD = 1;
     // Descriptor is being dropped.
     DROP = 2;
+    // Descriptor is being staged for a future schema change.
+    STAGE = 3;
   }
   optional Direction direction = 4 [(gogoproto.nullable) = false];
 
