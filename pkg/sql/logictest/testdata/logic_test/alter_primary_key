@@ -961,3 +961,16 @@ t2  CREATE TABLE t2 (
     FAMILY fam_0_x (x),
     FAMILY fam_1_y (y)
 ) INTERLEAVE IN PARENT t (x)
+
+# Regression for #45773.
+statement ok
+CREATE TABLE t45773 (x INT PRIMARY KEY, y INT, INDEX i (y));
+ALTER TABLE t45773 ALTER PRIMARY KEY USING COLUMNS (x)
+
+# Ensure that index i hasn't been rewritten.
+query IT
+SELECT index_id, index_name FROM crdb_internal.table_indexes WHERE descriptor_name = 't45773' ORDER BY index_id
+----
+2  i
+3  primary
+4  t45773_x_key

@@ -602,6 +602,22 @@ func (n *alterTableNode) startExec(params runParams) error {
 				}
 				return shouldRewrite || !idx.Unique || idx.Type == sqlbase.IndexDescriptor_INVERTED
 			}
+
+			// If the new primary index and old primary index have the same columns,
+			// then we don't need to rewrite any indexes.
+			// TODO (rohany): see if we can extend this to more cases.
+			if len(newPrimaryIndexDesc.ColumnIDs) == len(n.tableDesc.PrimaryIndex.ColumnIDs) {
+				arrayEqual := true
+				for i := range newPrimaryIndexDesc.ColumnIDs {
+					if newPrimaryIndexDesc.ColumnIDs[i] != n.tableDesc.PrimaryIndex.ColumnIDs[i] {
+						arrayEqual = false
+					}
+				}
+				if arrayEqual {
+					shouldRewriteIndex = func(_ *sqlbase.IndexDescriptor) bool { return false }
+				}
+			}
+
 			var indexesToRewrite []*sqlbase.IndexDescriptor
 			for i := range n.tableDesc.Indexes {
 				idx := &n.tableDesc.Indexes[i]
