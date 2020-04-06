@@ -634,9 +634,16 @@ func ResolveFK(
 		}
 	}
 
-	srcCols, err := tbl.FindActiveColumnsByNames(d.FromCols)
-	if err != nil {
-		return err
+	srcCols := make([]sqlbase.ColumnDescriptor, len(d.FromCols))
+	for i, col := range d.FromCols {
+		col, _, err := tbl.FindColumnByName(col)
+		if err != nil {
+			return err
+		}
+		if err := col.CheckCanBeFKRef(); err != nil {
+			return err
+		}
+		srcCols[i] = *col
 	}
 
 	targetColNames := d.ToCols

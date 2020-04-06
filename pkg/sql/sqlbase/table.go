@@ -501,6 +501,13 @@ func FindFKOriginIndex(
 			return idx, nil
 		}
 	}
+	for i := range originTable.Mutations {
+		if idx := originTable.Mutations[i].GetIndex(); idx != nil {
+			if idx.IsValidOriginIndex(originColIDs) {
+				return idx, nil
+			}
+		}
+	}
 	return nil, pgerror.Newf(
 		pgcode.ForeignKeyViolation,
 		"there is no index matching given keys for referenced table %s",

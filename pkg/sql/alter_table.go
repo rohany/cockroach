@@ -306,7 +306,7 @@ func (n *alterTableNode) startExec(params runParams) error {
 
 			case *tree.ForeignKeyConstraintTableDef:
 				for _, colName := range d.FromCols {
-					col, err := n.tableDesc.FindActiveColumnByName(string(colName))
+					col, _, err := n.tableDesc.FindColumnByName(colName)
 					if err != nil {
 						if _, dropped, inactiveErr := n.tableDesc.FindColumnByName(colName); inactiveErr == nil && !dropped {
 							return unimplemented.NewWithIssue(32917,
