@@ -1280,7 +1280,7 @@ func randColumnTableDef(rand *rand.Rand, tableIdx int, colIdx int) *tree.ColumnT
 		// We make a unique name for all columns by prefixing them with the table
 		// index to make it easier to reference columns from different tables.
 		Name: tree.Name(fmt.Sprintf("col%d_%d", tableIdx, colIdx)),
-		Type: RandSortingType(rand),
+		Type: tree.MakeKnownType(RandSortingType(rand)),
 	}
 	columnDef.Nullable.Nullability = tree.Nullability(rand.Intn(int(tree.SilentNull) + 1))
 	return columnDef
@@ -1298,7 +1298,8 @@ func randIndexTableDefFromCols(
 
 	indexElemList := make(tree.IndexElemList, 0, len(cols))
 	for i := range cols {
-		semType := cols[i].Type.Family()
+		// TODO (rohany): What do I do here?
+		semType := cols[i].Type.(*tree.KnownType).T.Family()
 		if MustBeValueEncoded(semType) {
 			continue
 		}

@@ -155,11 +155,15 @@ func MakeColumnDefDescs(
 	}
 
 	// Validate and assign column type.
-	err := ValidateColumnDefType(d.Type)
+	defType, err := d.Type.Resolve(semaCtx.TypeResolver)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	col.Type = *d.Type
+	err = ValidateColumnDefType(defType)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	col.Type = *defType
 
 	var typedExpr tree.TypedExpr
 	if d.HasDefaultExpr() {
@@ -167,7 +171,7 @@ func MakeColumnDefDescs(
 		// and does not contain invalid functions.
 		var err error
 		if typedExpr, err = SanitizeVarFreeExpr(
-			d.DefaultExpr.Expr, d.Type, "DEFAULT", semaCtx, true, /* allowImpure */
+			d.DefaultExpr.Expr, defType, "DEFAULT", semaCtx, true, /* allowImpure */
 		); err != nil {
 			return nil, nil, nil, err
 		}

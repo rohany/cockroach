@@ -234,7 +234,7 @@ var DistAggregationTable = map[execinfrapb.AggregatorSpec_Func]DistAggregationIn
 			if sum.ResolvedType().Family() == types.FloatFamily {
 				expr.Right = &tree.CastExpr{
 					Expr: count,
-					Type: types.Float,
+					Type: tree.MakeKnownType(types.Float),
 				}
 			}
 			ctx := &tree.SemaContext{IVarContainer: h.Container()}

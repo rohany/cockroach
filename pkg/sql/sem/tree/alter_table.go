@@ -15,7 +15,6 @@ import (
 
 	"github.com/cockroachdb/cockroach/pkg/server/telemetry"
 	"github.com/cockroachdb/cockroach/pkg/sql/sqltelemetry"
-	"github.com/cockroachdb/cockroach/pkg/sql/types"
 )
 
 // AlterTable represents an ALTER TABLE statement.
@@ -200,7 +199,7 @@ func (node *AlterTableAddConstraint) Format(ctx *FmtCtx) {
 type AlterTableAlterColumnType struct {
 	Collation string
 	Column    Name
-	ToType    *types.T
+	ToType    ResolvableTypeReference
 	Using     Expr
 }
 
@@ -214,7 +213,7 @@ func (node *AlterTableAlterColumnType) Format(ctx *FmtCtx) {
 	ctx.WriteString(" ALTER COLUMN ")
 	ctx.FormatNode(&node.Column)
 	ctx.WriteString(" SET DATA TYPE ")
-	ctx.WriteString(node.ToType.SQLString())
+	ctx.FormatNode(node.ToType)
 	if len(node.Collation) > 0 {
 		ctx.WriteString(" COLLATE ")
 		ctx.WriteString(node.Collation)

@@ -501,6 +501,12 @@ func (u *sqlSymUnion) partitionedBackup() tree.PartitionedBackup {
 func (u *sqlSymUnion) partitionedBackups() []tree.PartitionedBackup {
     return u.val.([]tree.PartitionedBackup)
 }
+func (u *sqlSymUnion) typeReference() tree.ResolvableTypeReference {
+    return u.val.(tree.ResolvableTypeReference)
+}
+func (u *sqlSymUnion) typeReferences() []tree.ResolvableTypeReference {
+    return u.val.([]tree.ResolvableTypeReference)
+}
 func newNameFromStr(s string) *tree.Name {
     return (*tree.Name)(&s)
 }
@@ -979,7 +985,7 @@ func newNameFromStr(s string) *tree.Name {
 %type <str> explain_option_name
 %type <[]string> explain_option_list
 
-%type <*types.T> typename simple_typename const_typename
+%type <tree.ResolvableTypeReference> typename const_typename simple_typename
 %type <bool> opt_timezone
 %type <*types.T> numeric opt_numeric_modifiers
 %type <*types.T> opt_float
@@ -988,7 +994,7 @@ func newNameFromStr(s string) *tree.Name {
 %type <*types.T> bit_with_length bit_without_length
 %type <*types.T> character_base
 %type <*types.T> postgres_oid
-%type <*types.T> cast_target
+%type <tree.ResolvableTypeReference> cast_target
 %type <str> extract_arg
 %type <bool> opt_varying
 
@@ -1702,7 +1708,7 @@ alter_table_cmd:
   {
     $$.val = &tree.AlterTableAlterColumnType{
       Column: tree.Name($3),
-      ToType: $6.colType(),
+      ToType: $6.typeReference(),
       Collation: $7,
       Using: $8.expr(),
     }
@@ -4645,7 +4651,7 @@ range_partition:
 column_def:
   column_name typename col_qual_list
   {
-    typ := $2.colType()
+    typ := $2.typeReference()
     tableDef, err := tree.NewColumnTableDef(tree.Name($1), typ, isSerialType(typ), $3.colQuals())
     if err != nil {
       return setErr(sqllex, err)
@@ -5156,7 +5162,7 @@ sequence_option_list:
 | sequence_option_list sequence_option_elem  { $$.val = append($1.seqOpts(), $2.seqOpt()) }
 
 sequence_option_elem:
-  AS typename                  { return unimplementedWithIssueDetail(sqllex, 25110, $2.colType().SQLString()) }
+  AS typename                  { return unimplementedWithIssueDetail(sqllex, 25110, $2.typeReference().String()) }
 | CYCLE                        { /* SKIP DOC */
                                  $$.val = tree.SequenceOption{Name: tree.SeqOptCycle} }
 | NO CYCLE                     { $$.val = tree.SequenceOption{Name: tree.SeqOptNoCycle} }
@@ -7203,12 +7209,12 @@ typename:
   {
     if bounds := $2.int32s(); bounds != nil {
       var err error
-      $$.val, err = arrayOf($1.colType(), bounds)
+      $$.val, err = arrayOf($1.typeReference(), bounds)
       if err != nil {
         return setErr(sqllex, err)
       }
     } else {
-      $$.val = $1.colType()
+      $$.val = $1.typeReference()
     }
   }
   // SQL standard syntax, currently only one-dimensional
@@ -7216,7 +7222,7 @@ typename:
 | simple_typename ARRAY '[' ICONST ']' {
     /* SKIP DOC */
     var err error
-    $$.val, err = arrayOf($1.colType(), nil)
+    $$.val, err = arrayOf($1.typeReference(), nil)
     if err != nil {
       return setErr(sqllex, err)
     }
@@ -7224,7 +7230,7 @@ typename:
 | simple_typename ARRAY '[' ICONST ']' '[' error { return unimplementedWithIssue(sqllex, 32552) }
 | simple_typename ARRAY {
     var err error
-    $$.val, err = arrayOf($1.colType(), nil)
+    $$.val, err = arrayOf($1.typeReference(), nil)
     if err != nil {
       return setErr(sqllex, err)
     }
@@ -7233,7 +7239,7 @@ typename:
 cast_target:
   typename
   {
-    $$.val = $1.colType()
+    $$.val = $1.typeReference()
   }
 
 opt_array_bounds:
@@ -7284,10 +7290,25 @@ simple_typename:
     return unimplemented(sqllex, "qualified types")
   }
 | const_typename
+  {
+    $$.val = $1
+  }
 | bit_with_length
+  {
+    $$.val = tree.MakeKnownType($1.colType())
+  }
 | character_with_length
+  {
+    $$.val = tree.MakeKnownType($1.colType())
+  }
 | interval_type
+  {
+    $$.val = tree.MakeKnownType($1.colType())
+  }
 | postgres_oid
+  {
+    $$.val = tree.MakeKnownType($1.colType())
+  }
 
 // We have a separate const_typename to allow defaulting fixed-length types
 // such as CHAR() and BIT() to an unspecified length. SQL9x requires that these
@@ -7300,81 +7321,93 @@ simple_typename:
 // names.
 const_typename:
   numeric
+  {
+    $$.val = tree.MakeKnownType($1.colType())
+  }
 | bit_without_length
+  {
+    $$.val = tree.MakeKnownType($1.colType())
+  }
 | character_without_length
+  {
+    $$.val = tree.MakeKnownType($1.colType())
+  }
 | const_datetime
+  {
+    $$.val = tree.MakeKnownType($1.colType())
+  }
 | const_json
   {
-    $$.val = types.Jsonb
+    $$.val = tree.MakeKnownType(types.Jsonb)
   }
 | BLOB
   {
-    $$.val = types.Bytes
+    $$.val = tree.MakeKnownType(types.Bytes)
   }
 | BYTES
   {
-    $$.val = types.Bytes
+    $$.val = tree.MakeKnownType(types.Bytes)
   }
 | BYTEA
   {
-    $$.val = types.Bytes
+    $$.val = tree.MakeKnownType(types.Bytes)
   }
 | TEXT
   {
-    $$.val = types.String
+    $$.val = tree.MakeKnownType(types.String)
   }
 | NAME
   {
-    $$.val = types.Name
+    $$.val = tree.MakeKnownType(types.Name)
   }
 | SERIAL
   {
     switch sqllex.(*lexer).nakedIntType.Width() {
     case 32:
-      $$.val = &serial4Type
+      $$.val = tree.MakeKnownType(&serial4Type)
     default:
-      $$.val = &serial8Type
+      $$.val = tree.MakeKnownType(&serial8Type)
     }
   }
 | SERIAL2
   {
-    $$.val = &serial2Type
+    $$.val = tree.MakeKnownType(&serial2Type)
   }
 | SMALLSERIAL
   {
-    $$.val = &serial2Type
+    $$.val = tree.MakeKnownType(&serial2Type)
   }
 | SERIAL4
   {
-    $$.val = &serial4Type
+    $$.val = tree.MakeKnownType(&serial4Type)
   }
 | SERIAL8
   {
-    $$.val = &serial8Type
+    $$.val = tree.MakeKnownType(&serial8Type)
   }
 | BIGSERIAL
   {
-    $$.val = &serial8Type
+    $$.val = tree.MakeKnownType(&serial8Type)
   }
 | UUID
   {
-    $$.val = types.Uuid
+    $$.val = tree.MakeKnownType(types.Uuid)
   }
 | INET
   {
-    $$.val = types.INet
+    $$.val = tree.MakeKnownType(types.INet)
   }
 | OID
   {
-    $$.val = types.Oid
+    $$.val = tree.MakeKnownType(types.Oid)
   }
 | OIDVECTOR
   {
-    $$.val = types.OidVector
+    $$.val = tree.MakeKnownType(types.OidVector)
   }
 | INT2VECTOR
   {
-    $$.val = types.Int2Vector
+    $$.val = tree.MakeKnownType(types.Int2Vector)
   }
 | IDENT
   {
@@ -7385,11 +7418,9 @@ const_typename:
     // Eventually this clause will be used to parse user-defined types as well,
     // since their names can be quoted.
     if $1 == "char" {
-      $$.val = types.MakeQChar(0)
+      $$.val = tree.MakeKnownType(types.MakeQChar(0))
     } else {
-      var ok bool
-      var unimp int
-      $$.val, ok, unimp = types.TypeForNonKeywordTypeName($1)
+      ty, ok, unimp := types.TypeForNonKeywordTypeName($1)
       if !ok {
           switch unimp {
               case 0:
@@ -7403,6 +7434,7 @@ const_typename:
                 return unimplementedWithIssueDetail(sqllex, unimp, $1)
           }
       }
+      $$.val = tree.MakeKnownType(ty)
     }
   }
 
@@ -7883,11 +7915,11 @@ a_expr:
   c_expr
 | a_expr TYPECAST cast_target
   {
-    $$.val = &tree.CastExpr{Expr: $1.expr(), Type: $3.colType(), SyntaxMode: tree.CastShort}
+    $$.val = &tree.CastExpr{Expr: $1.expr(), Type: $3.typeReference(), SyntaxMode: tree.CastShort}
   }
 | a_expr TYPEANNOTATE typename
   {
-    $$.val = &tree.AnnotateTypeExpr{Expr: $1.expr(), Type: $3.colType(), SyntaxMode: tree.AnnotateShort}
+    $$.val = &tree.AnnotateTypeExpr{Expr: $1.expr(), Type: $3.typeReference(), SyntaxMode: tree.AnnotateShort}
   }
 | a_expr COLLATE collation_name
   {
@@ -8250,11 +8282,11 @@ b_expr:
   c_expr
 | b_expr TYPECAST cast_target
   {
-    $$.val = &tree.CastExpr{Expr: $1.expr(), Type: $3.colType(), SyntaxMode: tree.CastShort}
+    $$.val = &tree.CastExpr{Expr: $1.expr(), Type: $3.typeReference(), SyntaxMode: tree.CastShort}
   }
 | b_expr TYPEANNOTATE typename
   {
-    $$.val = &tree.AnnotateTypeExpr{Expr: $1.expr(), Type: $3.colType(), SyntaxMode: tree.AnnotateShort}
+    $$.val = &tree.AnnotateTypeExpr{Expr: $1.expr(), Type: $3.typeReference(), SyntaxMode: tree.AnnotateShort}
   }
 | '+' b_expr %prec UMINUS
   {
@@ -8439,7 +8471,7 @@ d_expr:
 | func_name '(' expr_list opt_sort_clause ')' SCONST { return unimplemented(sqllex, $1.unresolvedName().String() + "(...) SCONST") }
 | const_typename SCONST
   {
-    $$.val = &tree.CastExpr{Expr: tree.NewStrVal($2), Type: $1.colType(), SyntaxMode: tree.CastPrepend}
+    $$.val = &tree.CastExpr{Expr: tree.NewStrVal($2), Type: $1.typeReference(), SyntaxMode: tree.CastPrepend}
   }
 | interval_value
   {
@@ -8629,11 +8661,11 @@ func_expr_common_subexpr:
   }
 | CAST '(' a_expr AS cast_target ')'
   {
-    $$.val = &tree.CastExpr{Expr: $3.expr(), Type: $5.colType(), SyntaxMode: tree.CastExplicit}
+    $$.val = &tree.CastExpr{Expr: $3.expr(), Type: $5.typeReference(), SyntaxMode: tree.CastExplicit}
   }
 | ANNOTATE_TYPE '(' a_expr ',' typename ')'
   {
-    $$.val = &tree.AnnotateTypeExpr{Expr: $3.expr(), Type: $5.colType(), SyntaxMode: tree.AnnotateExplicit}
+    $$.val = &tree.AnnotateTypeExpr{Expr: $3.expr(), Type: $5.typeReference(), SyntaxMode: tree.AnnotateExplicit}
   }
 | IF '(' a_expr ',' a_expr ',' a_expr ')'
   {
@@ -9148,11 +9180,11 @@ expr_list:
 type_list:
   typename
   {
-    $$.val = []*types.T{$1.colType()}
+    $$.val = []tree.ResolvableTypeReference{$1.typeReference()}
   }
 | type_list ',' typename
   {
-    $$.val = append($1.colTypes(), $3.colType())
+    $$.val = append($1.typeReferences(), $3.typeReference())
   }
 
 array_expr:

@@ -2620,6 +2620,8 @@ type EvalDatabase interface {
 // EvalPlanner is a limited planner that can be used from EvalContext.
 type EvalPlanner interface {
 	EvalDatabase
+	TypeReferenceResolver
+
 	// ParseType parses a column type.
 	ParseType(sql string) (*types.T, error)
 
@@ -3259,7 +3261,11 @@ func (expr *CastExpr) Eval(ctx *EvalContext) (Datum, error) {
 		return d, nil
 	}
 	d = UnwrapDatum(ctx, d)
-	return PerformCast(ctx, d, expr.Type)
+	toTyp, err := expr.Type.Resolve(ctx.Planner)
+	if err != nil {
+		return nil, err
+	}
+	return PerformCast(ctx, d, toTyp)
 }
 
 // PerformCast performs a cast from the provided Datum to the specified
@@ -4477,7 +4483,7 @@ func (t *Placeholder) Eval(ctx *EvalContext) (Datum, error) {
 		// type for the placeholder. In this case, we cast the expression to
 		// the desired type.
 		// TODO(jordan): introduce a restriction on what casts are allowed here.
-		cast := &CastExpr{Expr: e, Type: typ}
+		cast := &CastExpr{Expr: e, Type: MakeKnownType(typ)}
 		return cast.Eval(ctx)
 	}
 	return e.Eval(ctx)

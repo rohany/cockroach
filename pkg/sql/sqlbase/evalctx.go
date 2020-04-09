@@ -110,6 +110,11 @@ func (ep *DummyEvalPlanner) EvalSubquery(expr *tree.Subquery) (tree.Datum, error
 	return nil, errors.WithStack(errEvalPlanner)
 }
 
+// ResolveType is part of the tree.EvalPlanner interface.
+func (ep *DummyEvalPlanner) ResolveType() (*types.T, error) {
+	return nil, errors.WithStack(errEvalPlanner)
+}
+
 // DummyPrivilegedAccessor implements the tree.PrivilegedAccessor interface by returning errors.
 type DummyPrivilegedAccessor struct{}
 

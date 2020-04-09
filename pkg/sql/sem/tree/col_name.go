@@ -85,9 +85,10 @@ func ComputeColNameInternal(sp sessiondata.SearchPath, target Expr) (int, string
 		if err != nil {
 			return 0, "", err
 		}
-		if strength <= 1 {
-			return 1, computeCastName(e.Type), nil
-		}
+		// TODO (rohany): What do I do here?
+		//if strength <= 1 {
+		//	return 1, computeCastName(e.Type), nil
+		//}
 		return strength, s, nil
 
 	case *AnnotateTypeExpr:
@@ -96,9 +97,10 @@ func ComputeColNameInternal(sp sessiondata.SearchPath, target Expr) (int, string
 		if err != nil {
 			return 0, "", err
 		}
-		if strength <= 1 {
-			return 1, computeCastName(e.Type), nil
-		}
+		// TODO (rohany): What do I do here?
+		//if strength <= 1 {
+		//	return 1, computeCastName(e.Type), nil
+		//}
 		return strength, s, nil
 
 	case *CollateExpr:

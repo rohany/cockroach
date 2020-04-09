@@ -213,7 +213,7 @@ const (
 // statement.
 type ColumnTableDef struct {
 	Name     Name
-	Type     *types.T
+	Type     ResolvableTypeReference
 	IsSerial bool
 	Nullable struct {
 		Nullability    Nullability
@@ -277,7 +277,7 @@ func processCollationOnType(name Name, typ *types.T, c ColumnCollation) (*types.
 
 // NewColumnTableDef constructs a column definition for a CreateTable statement.
 func NewColumnTableDef(
-	name Name, typ *types.T, isSerial bool, qualifications []NamedColumnQualification,
+	name Name, typ ResolvableTypeReference, isSerial bool, qualifications []NamedColumnQualification,
 ) (*ColumnTableDef, error) {
 	d := &ColumnTableDef{
 		Name:     name,
@@ -293,10 +293,11 @@ func NewColumnTableDef(
 			if err != nil {
 				return nil, pgerror.Wrapf(err, pgcode.Syntax, "invalid locale %s", locale)
 			}
-			d.Type, err = processCollationOnType(name, d.Type, t)
-			if err != nil {
-				return nil, err
-			}
+			// TODO (rohany): What do I do here?
+			//d.Type, err = processCollationOnType(name, d.Type, t)
+			//if err != nil {
+			//	return nil, err
+			//}
 		case *ColumnDefault:
 			if d.HasDefaultExpr() {
 				return nil, pgerror.Newf(pgcode.Syntax,
@@ -482,15 +483,16 @@ func (node *ColumnTableDef) Format(ctx *FmtCtx) {
 func (node *ColumnTableDef) columnTypeString() string {
 	if node.IsSerial {
 		// Map INT types to SERIAL keyword.
-		switch node.Type.Width() {
-		case 16:
-			return "SERIAL2"
-		case 32:
-			return "SERIAL4"
-		}
+		// TODO (rohany): What do I do here?
+		//switch node.Type.Width() {
+		//case 16:
+		//	return "SERIAL2"
+		//case 32:
+		//	return "SERIAL4"
+		//}
 		return "SERIAL8"
 	}
-	return node.Type.SQLString()
+	return node.Type.String()
 }
 
 // String implements the fmt.Stringer interface.

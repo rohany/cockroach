@@ -963,7 +963,7 @@ func (node *NameList) doc(p *PrettyCfg) pretty.Doc {
 }
 
 func (node *CastExpr) doc(p *PrettyCfg) pretty.Doc {
-	typ := pretty.Text(node.Type.SQLString())
+	typ := pretty.Text(node.Type.String())
 
 	switch node.SyntaxMode {
 	case CastPrepend:
@@ -979,31 +979,33 @@ func (node *CastExpr) doc(p *PrettyCfg) pretty.Doc {
 		}
 		fallthrough
 	case CastShort:
-		switch node.Type.Family() {
-		case types.JsonFamily:
-			if sv, ok := node.Expr.(*StrVal); ok && p.JSONFmt {
-				return p.jsonCast(sv, "::", node.Type)
-			}
-		}
+		// TODO (rohany): What to do here?
+		//switch node.Type.Family() {
+		//case types.JsonFamily:
+		//	if sv, ok := node.Expr.(*StrVal); ok && p.JSONFmt {
+		//		return p.jsonCast(sv, "::", node.Type)
+		//	}
+		//}
 		return pretty.Fold(pretty.Concat,
 			p.exprDocWithParen(node.Expr),
 			pretty.Text("::"),
 			typ,
 		)
 	default:
-		if node.Type.Family() == types.CollatedStringFamily {
-			// COLLATE clause needs to go after CAST expression, so create
-			// equivalent string type without the locale to get name of string
-			// type without the COLLATE.
-			strTyp := types.MakeScalar(
-				types.StringFamily,
-				node.Type.Oid(),
-				node.Type.Precision(),
-				node.Type.Width(),
-				"", /* locale */
-			)
-			typ = pretty.Text(strTyp.SQLString())
-		}
+		// TODO (rohany): What to do here?
+		//if node.Type.Family() == types.CollatedStringFamily {
+		//	// COLLATE clause needs to go after CAST expression, so create
+		//	// equivalent string type without the locale to get name of string
+		//	// type without the COLLATE.
+		//	strTyp := types.MakeScalar(
+		//		types.StringFamily,
+		//		node.Type.Oid(),
+		//		node.Type.Precision(),
+		//		node.Type.Width(),
+		//		"", /* locale */
+		//	)
+		//	typ = pretty.Text(strTyp.SQLString())
+		//}
 
 		ret := pretty.Fold(pretty.Concat,
 			pretty.Keyword("CAST"),
@@ -1020,12 +1022,13 @@ func (node *CastExpr) doc(p *PrettyCfg) pretty.Doc {
 			),
 		)
 
-		if node.Type.Family() == types.CollatedStringFamily {
-			ret = pretty.Fold(pretty.ConcatSpace,
-				ret,
-				pretty.Keyword("COLLATE"),
-				pretty.Text(node.Type.Locale()))
-		}
+		// TODO (rohany): What to do here?
+		//if node.Type.Family() == types.CollatedStringFamily {
+		//	ret = pretty.Fold(pretty.ConcatSpace,
+		//		ret,
+		//		pretty.Keyword("COLLATE"),
+		//		pretty.Text(node.Type.Locale()))
+		//}
 		return ret
 	}
 }
@@ -2135,12 +2138,13 @@ func (node *Execute) docTable(p *PrettyCfg) []pretty.TableRow {
 
 func (node *AnnotateTypeExpr) doc(p *PrettyCfg) pretty.Doc {
 	if node.SyntaxMode == AnnotateShort {
-		switch node.Type.Family() {
-		case types.JsonFamily:
-			if sv, ok := node.Expr.(*StrVal); ok && p.JSONFmt {
-				return p.jsonCast(sv, ":::", node.Type)
-			}
-		}
+		// TODO (rohany): What do I do here?
+		//switch node.Type.Family() {
+		//case types.JsonFamily:
+		//	if sv, ok := node.Expr.(*StrVal); ok && p.JSONFmt {
+		//		return p.jsonCast(sv, ":::", node.Type)
+		//	}
+		//}
 	}
 	return p.docAsString(node)
 }

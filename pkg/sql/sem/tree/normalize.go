@@ -977,7 +977,7 @@ func ReType(expr TypedExpr, wantedType *types.T) TypedExpr {
 	if expr.ResolvedType().Equivalent(wantedType) {
 		return expr
 	}
-	res := &CastExpr{Expr: expr, Type: wantedType}
+	res := &CastExpr{Expr: expr, Type: MakeKnownType(wantedType)}
 	res.typ = wantedType
 	return res
 }

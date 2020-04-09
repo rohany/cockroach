@@ -307,7 +307,12 @@ func ParseType(sql string) (*types.T, error) {
 		return nil, errors.AssertionFailedf("expected a tree.CastExpr, but found %T", expr)
 	}
 
-	return cast.Type, nil
+	// TODO (rohany): What do do here???
+	//  Does everything that calls this need a resolver? That makes sense right?
+	if ty, ok := cast.Type.(*tree.KnownType); ok {
+		return ty.T, nil
+	}
+	return nil, nil
 }
 
 var errBitLengthNotPositive = pgerror.WithCandidateCode(
@@ -356,13 +361,20 @@ func newDecimal(prec, scale int32) (*types.T, error) {
 
 // ArrayOf creates a type alias for an array of the given element type and fixed
 // bounds.
-func arrayOf(colType *types.T, bounds []int32) (*types.T, error) {
-	if err := types.CheckArrayElementType(colType); err != nil {
-		return nil, err
-	}
-
-	// Currently bounds are ignored.
-	return types.MakeArray(colType), nil
+// TODO (rohany): Here is the original one, I don't know what to do with it.
+//func arrayOf(colType *types.T, bounds []int32) (*types.T, error) {
+//	if err := types.CheckArrayElementType(colType); err != nil {
+//		return nil, err
+//	}
+//
+//	// Currently bounds are ignored.
+//	return types.MakeArray(colType), nil
+//}
+func arrayOf(
+	colType tree.ResolvableTypeReference, bounds []int32,
+) (tree.ResolvableTypeReference, error) {
+	// TODO (rohany): This is wrong.
+	return colType, nil
 }
 
 // The SERIAL types are pseudo-types that are only used during parsing. After
@@ -377,8 +389,18 @@ var (
 	serial8Type = *types.Int
 )
 
-func isSerialType(typ *types.T) bool {
+// TODO (rohany): What do I do with these???
+func isSerialTypeOld(typ *types.T) bool {
 	// This is a special case where == is used to compare types, since the SERIAL
 	// types are pseudo-types.
 	return typ == &serial2Type || typ == &serial4Type || typ == &serial8Type
+}
+
+func isSerialType(typ tree.ResolvableTypeReference) bool {
+	// This is a special case where == is used to compare types, since the SERIAL
+	// types are pseudo-types.
+	if ty, ok := typ.(*tree.KnownType); ok {
+		return isSerialTypeOld(ty.T)
+	}
+	return false
 }

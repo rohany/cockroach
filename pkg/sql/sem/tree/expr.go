@@ -1415,13 +1415,17 @@ const (
 	CastPrepend
 )
 
-// CastExpr represents a CAST(expr AS type) expression.
-type CastExpr struct {
-	Expr Expr
-	Type *types.T
+type UnresolvedCastExpr struct {
+	Expr       Expr
+	SyntaxMode castSyntaxMode
+	Type       ResolvableTypeReference
+}
 
+type ResolvedCastExpr struct {
+	Expr Expr
 	typeAnnotation
 	SyntaxMode castSyntaxMode
+	Type       *types.T
 }
 
 // Format implements the NodeFormatter interface.
@@ -1432,7 +1436,7 @@ func (node *CastExpr) Format(ctx *FmtCtx) {
 		// with string constats; if the underlying expression was changed, we fall
 		// back to the short syntax.
 		if _, ok := node.Expr.(*StrVal); ok {
-			ctx.WriteString(node.Type.SQLString())
+			ctx.FormatNode(node.Type)
 			ctx.WriteByte(' ')
 			ctx.FormatNode(node.Expr)
 			break
@@ -1441,26 +1445,28 @@ func (node *CastExpr) Format(ctx *FmtCtx) {
 	case CastShort:
 		exprFmtWithParen(ctx, node.Expr)
 		ctx.WriteString("::")
-		ctx.WriteString(node.Type.SQLString())
+		ctx.FormatNode(node.Type)
 	default:
 		ctx.WriteString("CAST(")
 		ctx.FormatNode(node.Expr)
 		ctx.WriteString(" AS ")
-		if node.Type.Family() == types.CollatedStringFamily {
-			// Need to write closing parentheses before COLLATE clause, so create
-			// equivalent string type without the locale.
-			strTyp := types.MakeScalar(
-				types.StringFamily,
-				node.Type.Oid(),
-				node.Type.Precision(),
-				node.Type.Width(),
-				"", /* locale */
-			)
-			ctx.WriteString(strTyp.SQLString())
-			ctx.WriteString(") COLLATE ")
-			lex.EncodeLocaleName(&ctx.Buffer, node.Type.Locale())
+		if false {
+			// TODO (rohany): Figure out what to do here!
+			//if node.Type.Family() == types.CollatedStringFamily {
+			//	// Need to write closing parentheses before COLLATE clause, so create
+			//	// equivalent string type without the locale.
+			//	strTyp := types.MakeScalar(
+			//		types.StringFamily,
+			//		node.Type.Oid(),
+			//		node.Type.Precision(),
+			//		node.Type.Width(),
+			//		"", /* locale */
+			//	)
+			//	ctx.WriteString(strTyp.SQLString())
+			//	ctx.WriteString(") COLLATE ")
+			//	lex.EncodeLocaleName(&ctx.Buffer, node.Type.Locale())
 		} else {
-			ctx.WriteString(node.Type.SQLString())
+			ctx.FormatNode(node.Type)
 			ctx.WriteByte(')')
 		}
 	}
@@ -1468,7 +1474,7 @@ func (node *CastExpr) Format(ctx *FmtCtx) {
 
 // NewTypedCastExpr returns a new CastExpr that is verified to be well-typed.
 func NewTypedCastExpr(expr TypedExpr, typ *types.T) (*CastExpr, error) {
-	node := &CastExpr{Expr: expr, Type: typ, SyntaxMode: CastShort}
+	node := &ResolvedCastExpr{Expr: expr, Type: typ, SyntaxMode: CastShort}
 	node.typ = typ
 	return node, nil
 }
@@ -1582,7 +1588,14 @@ const (
 )
 
 // AnnotateTypeExpr represents a ANNOTATE_TYPE(expr, type) expression.
-type AnnotateTypeExpr struct {
+type UnresolvedAnnotateTypeExpr struct {
+	Expr Expr
+	Type ResolvableTypeReference
+
+	SyntaxMode annotateSyntaxMode
+}
+
+type ResolvedAnnotateTypeExpr struct {
 	Expr Expr
 	Type *types.T
 
@@ -1593,25 +1606,26 @@ type AnnotateTypeExpr struct {
 func (node *AnnotateTypeExpr) Format(ctx *FmtCtx) {
 	if ctx.HasFlags(FmtPGAttrdefAdbin) {
 		ctx.FormatNode(node.Expr)
-		switch node.Type.Family() {
-		case types.StringFamily, types.CollatedStringFamily:
-			// Postgres formats strings using a cast afterward. Let's do the same.
-			ctx.WriteString("::")
-			ctx.WriteString(node.Type.SQLString())
-		}
+		// TODO (rohany): What do I do here?
+		//switch node.Type.Family() {
+		//case types.StringFamily, types.CollatedStringFamily:
+		//	// Postgres formats strings using a cast afterward. Let's do the same.
+		//	ctx.WriteString("::")
+		//	ctx.WriteString(node.Type.SQLString())
+		//}
 		return
 	}
 	switch node.SyntaxMode {
 	case AnnotateShort:
 		exprFmtWithParen(ctx, node.Expr)
 		ctx.WriteString(":::")
-		ctx.WriteString(node.Type.SQLString())
+		ctx.FormatNode(node.Type)
 
 	default:
 		ctx.WriteString("ANNOTATE_TYPE(")
 		ctx.FormatNode(node.Expr)
 		ctx.WriteString(", ")
-		ctx.WriteString(node.Type.SQLString())
+		ctx.FormatNode(node.Type)
 		ctx.WriteByte(')')
 	}
 }
