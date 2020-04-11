@@ -457,8 +457,13 @@ func constructTableMetadata(rows *sqlRows, md basicMetadata) (tableMetadata, err
 		if err != nil {
 			return tableMetadata{}, fmt.Errorf("type %s is not a valid CockroachDB type", typ)
 		}
-		coltyp := stmt.AST.(*tree.AlterTable).Cmds[0].(*tree.AlterTableAlterColumnType).ToType
+		ref := stmt.AST.(*tree.AlterTable).Cmds[0].(*tree.AlterTableAlterColumnType).ToType
 
+		coltyp := tree.GetStaticallyKnownType(ref)
+		if coltyp == nil {
+			// TODO (rohany): This should be an unimplemented message.
+			return tableMetadata{}, errors.New("user defined types unsupported in dump right now")
+		}
 		coltypes[name] = coltyp
 		if colnames.Len() > 0 {
 			colnames.WriteString(", ")

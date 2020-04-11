@@ -517,6 +517,16 @@ func (u *sqlSymUnion) geoFigure() geopb.Shape {
 func newNameFromStr(s string) *tree.Name {
     return (*tree.Name)(&s)
 }
+func (u *sqlSymUnion) typeReference() tree.ResolvableTypeReference {
+    ref, ok := u.val.(tree.ResolvableTypeReference)
+    if !ok {
+      panic("didnt find a type reference")
+    }
+    return ref
+}
+func (u *sqlSymUnion) typeReferences() []tree.ResolvableTypeReference {
+    return u.val.([]tree.ResolvableTypeReference)
+}
 %}
 
 // NB: the %token definitions must come before the %type definitions in this
@@ -972,7 +982,7 @@ func newNameFromStr(s string) *tree.Name {
 %type <tree.Expr> having_clause
 %type <tree.Expr> array_expr
 %type <tree.Expr> interval_value
-%type <[]*types.T> type_list prep_type_clause
+%type <[]tree.ResolvableTypeReference> type_list prep_type_clause
 %type <tree.Exprs> array_expr_list
 %type <*tree.Tuple> row labeled_row
 %type <tree.Expr> case_expr case_arg case_default
@@ -998,7 +1008,8 @@ func newNameFromStr(s string) *tree.Name {
 %type <str> explain_option_name
 %type <[]string> explain_option_list opt_enum_val_list enum_val_list
 
-%type <*types.T> typename simple_typename const_typename
+%type <tree.ResolvableTypeReference> typename simple_typename cast_target
+%type <*types.T> const_typename
 %type <bool> opt_timezone
 %type <*types.T> numeric opt_numeric_modifiers
 %type <*types.T> opt_float
@@ -1007,7 +1018,6 @@ func newNameFromStr(s string) *tree.Name {
 %type <*types.T> bit_with_length bit_without_length
 %type <*types.T> character_base
 %type <*types.T> geo_shape
-%type <*types.T> cast_target
 %type <*types.T> const_geo
 %type <str> extract_arg
 %type <bool> opt_varying
@@ -1722,7 +1732,7 @@ alter_table_cmd:
   {
     $$.val = &tree.AlterTableAlterColumnType{
       Column: tree.Name($3),
-      ToType: $6.colType(),
+      ToType: $6.typeReference(),
       Collation: $7,
       Using: $8.expr(),
     }
@@ -2839,7 +2849,7 @@ prepare_stmt:
   {
     $$.val = &tree.Prepare{
       Name: tree.Name($2),
-      Types: $3.colTypes(),
+      Types: $3.typeReferences(),
       Statement: $5.stmt(),
     }
   }
@@ -2848,7 +2858,7 @@ prepare_stmt:
     /* SKIP DOC */
     $$.val = &tree.Prepare{
       Name: tree.Name($2),
-      Types: $3.colTypes(),
+      Types: $3.typeReferences(),
       Statement: &tree.CannedOptPlan{Plan: $7},
     }
   }
@@ -2857,11 +2867,11 @@ prepare_stmt:
 prep_type_clause:
   '(' type_list ')'
   {
-    $$.val = $2.colTypes();
+    $$.val = $2.typeReferences();
   }
 | /* EMPTY */
   {
-    $$.val = []*types.T(nil)
+    $$.val = []tree.ResolvableTypeReference(nil)
   }
 
 // %Help: EXECUTE - execute a statement prepared previously
@@ -4734,8 +4744,8 @@ range_partition:
 column_def:
   column_name typename col_qual_list
   {
-    typ := $2.colType()
-    tableDef, err := tree.NewColumnTableDef(tree.Name($1), typ, types.IsSerialType(typ), $3.colQuals())
+    typ := $2.typeReference()
+    tableDef, err := tree.NewColumnTableDef(tree.Name($1), typ, tree.IsReferenceSerialType(typ), $3.colQuals())
     if err != nil {
       return setErr(sqllex, err)
     }
@@ -5251,7 +5261,7 @@ sequence_option_list:
 | sequence_option_list sequence_option_elem  { $$.val = append($1.seqOpts(), $2.seqOpt()) }
 
 sequence_option_elem:
-  AS typename                  { return unimplementedWithIssueDetail(sqllex, 25110, $2.colType().SQLString()) }
+  AS typename                  { return unimplementedWithIssueDetail(sqllex, 25110, $2.typeReference().SQLString()) }
 | CYCLE                        { /* SKIP DOC */
                                  $$.val = tree.SequenceOption{Name: tree.SeqOptCycle} }
 | NO CYCLE                     { $$.val = tree.SequenceOption{Name: tree.SeqOptNoCycle} }
@@ -7345,12 +7355,12 @@ typename:
   {
     if bounds := $2.int32s(); bounds != nil {
       var err error
-      $$.val, err = arrayOf($1.colType(), bounds)
+      $$.val, err = arrayOf($1.typeReference(), bounds)
       if err != nil {
         return setErr(sqllex, err)
       }
     } else {
-      $$.val = $1.colType()
+      $$.val = $1.typeReference()
     }
   }
   // SQL standard syntax, currently only one-dimensional
@@ -7358,7 +7368,7 @@ typename:
 | simple_typename ARRAY '[' ICONST ']' {
     /* SKIP DOC */
     var err error
-    $$.val, err = arrayOf($1.colType(), nil)
+    $$.val, err = arrayOf($1.typeReference(), nil)
     if err != nil {
       return setErr(sqllex, err)
     }
@@ -7366,7 +7376,7 @@ typename:
 | simple_typename ARRAY '[' ICONST ']' '[' error { return unimplementedWithIssue(sqllex, 32552) }
 | simple_typename ARRAY {
     var err error
-    $$.val, err = arrayOf($1.colType(), nil)
+    $$.val, err = arrayOf($1.typeReference(), nil)
     if err != nil {
       return setErr(sqllex, err)
     }
@@ -7375,7 +7385,7 @@ typename:
 cast_target:
   typename
   {
-    $$.val = $1.colType()
+    $$.val = $1.typeReference()
   }
 
 opt_array_bounds:
@@ -7933,11 +7943,11 @@ a_expr:
   c_expr
 | a_expr TYPECAST cast_target
   {
-    $$.val = &tree.CastExpr{Expr: $1.expr(), Type: $3.colType(), SyntaxMode: tree.CastShort}
+    $$.val = &tree.CastExpr{Expr: $1.expr(), Type: $3.typeReference(), SyntaxMode: tree.CastShort}
   }
 | a_expr TYPEANNOTATE typename
   {
-    $$.val = &tree.AnnotateTypeExpr{Expr: $1.expr(), Type: $3.colType(), SyntaxMode: tree.AnnotateShort}
+    $$.val = &tree.AnnotateTypeExpr{Expr: $1.expr(), Type: $3.typeReference(), SyntaxMode: tree.AnnotateShort}
   }
 | a_expr COLLATE collation_name
   {
@@ -8234,11 +8244,11 @@ a_expr:
   }
 | a_expr IS OF '(' type_list ')' %prec IS
   {
-    $$.val = &tree.IsOfTypeExpr{Expr: $1.expr(), Types: $5.colTypes()}
+    $$.val = &tree.IsOfTypeExpr{Expr: $1.expr(), Types: $5.typeReferences()}
   }
 | a_expr IS NOT OF '(' type_list ')' %prec IS
   {
-    $$.val = &tree.IsOfTypeExpr{Not: true, Expr: $1.expr(), Types: $6.colTypes()}
+    $$.val = &tree.IsOfTypeExpr{Not: true, Expr: $1.expr(), Types: $6.typeReferences()}
   }
 | a_expr BETWEEN opt_asymmetric b_expr AND a_expr %prec BETWEEN
   {
@@ -8300,11 +8310,11 @@ b_expr:
   c_expr
 | b_expr TYPECAST cast_target
   {
-    $$.val = &tree.CastExpr{Expr: $1.expr(), Type: $3.colType(), SyntaxMode: tree.CastShort}
+    $$.val = &tree.CastExpr{Expr: $1.expr(), Type: $3.typeReference(), SyntaxMode: tree.CastShort}
   }
 | b_expr TYPEANNOTATE typename
   {
-    $$.val = &tree.AnnotateTypeExpr{Expr: $1.expr(), Type: $3.colType(), SyntaxMode: tree.AnnotateShort}
+    $$.val = &tree.AnnotateTypeExpr{Expr: $1.expr(), Type: $3.typeReference(), SyntaxMode: tree.AnnotateShort}
   }
 | '+' b_expr %prec UMINUS
   {
@@ -8404,11 +8414,11 @@ b_expr:
   }
 | b_expr IS OF '(' type_list ')' %prec IS
   {
-    $$.val = &tree.IsOfTypeExpr{Expr: $1.expr(), Types: $5.colTypes()}
+    $$.val = &tree.IsOfTypeExpr{Expr: $1.expr(), Types: $5.typeReferences()}
   }
 | b_expr IS NOT OF '(' type_list ')' %prec IS
   {
-    $$.val = &tree.IsOfTypeExpr{Not: true, Expr: $1.expr(), Types: $6.colTypes()}
+    $$.val = &tree.IsOfTypeExpr{Not: true, Expr: $1.expr(), Types: $6.typeReferences()}
   }
 
 // Productions that can be used in both a_expr and b_expr.
@@ -8623,6 +8633,7 @@ typed_literal:
         }
       } else {
         typ, ok, unimp := types.TypeForNonKeywordTypeName(typName)
+        // TODO (rohany): In the !ok case, we will soon return an unresolved type.
         if !ok {
           switch unimp {
             case 0:
@@ -8731,11 +8742,11 @@ func_expr_common_subexpr:
   }
 | CAST '(' a_expr AS cast_target ')'
   {
-    $$.val = &tree.CastExpr{Expr: $3.expr(), Type: $5.colType(), SyntaxMode: tree.CastExplicit}
+    $$.val = &tree.CastExpr{Expr: $3.expr(), Type: $5.typeReference(), SyntaxMode: tree.CastExplicit}
   }
 | ANNOTATE_TYPE '(' a_expr ',' typename ')'
   {
-    $$.val = &tree.AnnotateTypeExpr{Expr: $3.expr(), Type: $5.colType(), SyntaxMode: tree.AnnotateExplicit}
+    $$.val = &tree.AnnotateTypeExpr{Expr: $3.expr(), Type: $5.typeReference(), SyntaxMode: tree.AnnotateExplicit}
   }
 | IF '(' a_expr ',' a_expr ',' a_expr ')'
   {
@@ -9250,11 +9261,11 @@ expr_list:
 type_list:
   typename
   {
-    $$.val = []*types.T{$1.colType()}
+    $$.val = []tree.ResolvableTypeReference{$1.typeReference()}
   }
 | type_list ',' typename
   {
-    $$.val = append($1.colTypes(), $3.colType())
+    $$.val = append($1.typeReferences(), $3.typeReference())
   }
 
 array_expr:

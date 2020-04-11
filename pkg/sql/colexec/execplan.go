@@ -1594,14 +1594,14 @@ func planProjectionOperators(
 		// We can't use planProjectionOperators because it will reject planning a constNullOp without knowing
 		// the post typechecking "type" of the NULL.
 		if expr.ResolvedType() == types.Unknown {
-			op, resultIdx, ct, internalMemUsed, err = planTypedMaybeNullProjectionOperators(ctx, evalCtx, expr, t.Type, columnTypes, input, acc)
+			op, resultIdx, ct, internalMemUsed, err = planTypedMaybeNullProjectionOperators(ctx, evalCtx, expr, t.ResolvedType(), columnTypes, input, acc)
 		} else {
 			op, resultIdx, ct, internalMemUsed, err = planProjectionOperators(ctx, evalCtx, expr, columnTypes, input, acc)
 		}
 		if err != nil {
 			return nil, 0, nil, internalMemUsed, err
 		}
-		op, resultIdx, ct, err = planCastOperator(ctx, acc, ct, op, resultIdx, expr.ResolvedType(), t.Type)
+		op, resultIdx, ct, err = planCastOperator(ctx, acc, ct, op, resultIdx, expr.ResolvedType(), t.ResolvedType())
 		return op, resultIdx, ct, internalMemUsed, err
 	case *tree.FuncExpr:
 		var (
