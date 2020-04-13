@@ -187,7 +187,7 @@ func getTableCreateParams(
 			}
 		}
 
-		tKey = sqlbase.NewTableKey(dbID, schemaID, tableName)
+		tKey = sqlbase.NewTableOrTypeKey(dbID, schemaID, tableName)
 	}
 
 	exists, _, err := sqlbase.LookupObjectID(params.ctx, params.p.txn, dbID, schemaID, tableName)

@@ -3992,30 +3992,30 @@ func (dk DatabaseKey) Name() string {
 	return dk.name
 }
 
-// TableKey implements DescriptorKey interface.
-type TableKey struct {
+// TableOrTypeKey implements DescriptorKey interface.
+type TableOrTypeKey struct {
 	parentID       ID
 	parentSchemaID ID
 	name           string
 }
 
-// NewPublicTableKey returns a new TableKey scoped under the public schema.
-func NewPublicTableKey(parentID ID, name string) TableKey {
-	return TableKey{parentID: parentID, parentSchemaID: keys.PublicSchemaID, name: name}
+// NewPublicTableOrTypeKey returns a new TableOrTypeKey scoped under the public schema.
+func NewPublicTableOrTypeKey(parentID ID, name string) TableOrTypeKey {
+	return TableOrTypeKey{parentID: parentID, parentSchemaID: keys.PublicSchemaID, name: name}
 }
 
-// NewTableKey returns a new TableKey
-func NewTableKey(parentID ID, parentSchemaID ID, name string) TableKey {
-	return TableKey{parentID: parentID, parentSchemaID: parentSchemaID, name: name}
+// NewTableOrTypeKey returns a new TableOrTypeKey
+func NewTableOrTypeKey(parentID ID, parentSchemaID ID, name string) TableOrTypeKey {
+	return TableOrTypeKey{parentID: parentID, parentSchemaID: parentSchemaID, name: name}
 }
 
 // Key implements DescriptorKey interface.
-func (tk TableKey) Key() roachpb.Key {
+func (tk TableOrTypeKey) Key() roachpb.Key {
 	return MakeNameMetadataKey(tk.parentID, tk.parentSchemaID, tk.name)
 }
 
 // Name implements DescriptorKey interface.
-func (tk TableKey) Name() string {
+func (tk TableOrTypeKey) Name() string {
 	return tk.name
 }
 

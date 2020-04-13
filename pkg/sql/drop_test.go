@@ -152,7 +152,7 @@ INSERT INTO t.kv VALUES ('c', 'e'), ('a', 'c'), ('b', 'd');
 	}
 	dbDesc := desc.GetDatabase()
 
-	tbNameKey := sqlbase.NewPublicTableKey(dbDesc.ID, "kv").Key()
+	tbNameKey := sqlbase.NewPublicTableOrTypeKey(dbDesc.ID, "kv").Key()
 	gr, err := kvDB.Get(ctx, tbNameKey)
 	if err != nil {
 		t.Fatal(err)
@@ -330,7 +330,7 @@ INSERT INTO t.kv2 VALUES ('c', 'd'), ('a', 'b'), ('e', 'a');
 	}
 	dbDesc := desc.GetDatabase()
 
-	tKey := sqlbase.NewPublicTableKey(dbDesc.ID, "kv")
+	tKey := sqlbase.NewPublicTableOrTypeKey(dbDesc.ID, "kv")
 	gr, err := kvDB.Get(ctx, tKey.Key())
 	if err != nil {
 		t.Fatal(err)
@@ -345,7 +345,7 @@ INSERT INTO t.kv2 VALUES ('c', 'd'), ('a', 'b'), ('e', 'a');
 	}
 	tbDesc := desc.Table(ts)
 
-	t2Key := sqlbase.NewPublicTableKey(dbDesc.ID, "kv2")
+	t2Key := sqlbase.NewPublicTableOrTypeKey(dbDesc.ID, "kv2")
 	gr2, err := kvDB.Get(ctx, t2Key.Key())
 	if err != nil {
 		t.Fatal(err)
@@ -729,7 +729,7 @@ func TestDropTable(t *testing.T) {
 	}
 
 	tableDesc := sqlbase.GetTableDescriptor(kvDB, "t", "kv")
-	nameKey := sqlbase.NewPublicTableKey(keys.MinNonPredefinedUserDescID, "kv").Key()
+	nameKey := sqlbase.NewPublicTableOrTypeKey(keys.MinNonPredefinedUserDescID, "kv").Key()
 	gr, err := kvDB.Get(ctx, nameKey)
 
 	if err != nil {
@@ -828,7 +828,7 @@ func TestDropTableDeleteData(t *testing.T) {
 
 		descs = append(descs, sqlbase.GetTableDescriptor(kvDB, "t", tableName))
 
-		nameKey := sqlbase.NewPublicTableKey(keys.MinNonPredefinedUserDescID, tableName).Key()
+		nameKey := sqlbase.NewPublicTableOrTypeKey(keys.MinNonPredefinedUserDescID, tableName).Key()
 		gr, err := kvDB.Get(ctx, nameKey)
 		if err != nil {
 			t.Fatal(err)

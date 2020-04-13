@@ -101,7 +101,7 @@ func (a UncachedPhysicalAccessor) GetObjectNames(
 	}
 
 	log.Eventf(ctx, "fetching list of objects for %q", dbDesc.Name)
-	prefix := sqlbase.NewTableKey(dbDesc.ID, schemaID, "").Key()
+	prefix := sqlbase.NewTableOrTypeKey(dbDesc.ID, schemaID, "").Key()
 	sr, err := txn.Scan(ctx, prefix, prefix.PrefixEnd(), 0)
 	if err != nil {
 		return nil, err
