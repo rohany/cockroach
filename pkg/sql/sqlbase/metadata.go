@@ -150,7 +150,7 @@ func (ms MetadataSchema) GetInitialValues(
 		if bootstrapVersion.IsActive(clusterversion.VersionNamespaceTableWithSchemas) {
 			if parentID != keys.RootNamespaceID {
 				ret = append(ret, roachpb.KeyValue{
-					Key:   NewPublicTableKey(parentID, desc.GetName()).Key(),
+					Key:   NewPublicTableOrTypeKey(parentID, desc.GetName()).Key(),
 					Value: value,
 				})
 			} else {

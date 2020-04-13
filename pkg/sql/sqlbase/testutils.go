@@ -63,7 +63,7 @@ func GetTableDescriptor(kvDB *kv.DB, database string, table string) *TableDescri
 	}
 	dbDescID := ID(gr.ValueInt())
 
-	tKey := NewPublicTableKey(dbDescID, table)
+	tKey := NewPublicTableOrTypeKey(dbDescID, table)
 	gr, err = kvDB.Get(ctx, tKey.Key())
 	if err != nil {
 		panic(err)

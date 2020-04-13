@@ -160,7 +160,7 @@ func TestNamespaceTableSemantics(t *testing.T) {
 	} else if gr.Exists() {
 		t.Fatal("table key unexpectedly found in the deprecated system.namespace")
 	}
-	newTKey := sqlbase.NewPublicTableKey(dbID, "rel").Key()
+	newTKey := sqlbase.NewPublicTableOrTypeKey(dbID, "rel").Key()
 	if gr, err := kvDB.Get(ctx, newTKey); err != nil {
 		t.Fatal(err)
 	} else if !gr.Exists() {

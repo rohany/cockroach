@@ -73,7 +73,7 @@ func RemoveObjectNamespaceEntry(
 		// Schemas were introduced in 20.1.
 		toDelete = append(toDelete, NewSchemaKey(parentID, name))
 	} else {
-		toDelete = append(toDelete, NewTableKey(parentID, parentSchemaID, name))
+		toDelete = append(toDelete, NewTableOrTypeKey(parentID, parentSchemaID, name))
 		// TODO(solon): This can be completely removed in 20.2.
 		toDelete = append(toDelete, NewDeprecatedTableKey(parentID, name))
 	}
@@ -126,7 +126,7 @@ func MakeObjectNameKey(
 	} else if parentSchemaID == keys.RootNamespaceID {
 		key = NewSchemaKey(parentID, name)
 	} else {
-		key = NewTableKey(parentID, parentSchemaID, name)
+		key = NewTableOrTypeKey(parentID, parentSchemaID, name)
 	}
 	return key
 }
@@ -157,7 +157,7 @@ func LookupObjectID(
 	} else if parentSchemaID == keys.RootNamespaceID {
 		key = NewSchemaKey(parentID, name)
 	} else {
-		key = NewTableKey(parentID, parentSchemaID, name)
+		key = NewTableOrTypeKey(parentID, parentSchemaID, name)
 	}
 	log.Eventf(ctx, "looking up descriptor ID for name key %q", key.Key())
 	res, err := txn.Get(ctx, key.Key())

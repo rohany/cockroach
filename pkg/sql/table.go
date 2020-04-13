@@ -270,6 +270,33 @@ func (tc *TableCollection) resolveSchemaID(
 	return exists, schemaID, err
 }
 
+// TODO (rohany): Not sure if we should be passing an unresolved name in here,
+//  or make a tree.TypeName. UnresolvedName isn't bad because it gives us
+//  flexibility to resolve it as a tablename or a typename.
+// TODO (rohany): Returning an interface here because we don't know yet what
+//  is going to be the backing object for a user defined type.
+func (tc *TableCollection) getTypeVersion(
+	ctx context.Context, txn *kv.Txn, name *tree.UnresolvedName, flags tree.ObjectLookupFlags,
+) (interface{}, error) {
+	// TODO (rohany): Put a log message here.
+	// TODO (rohany): Check if the schema name is supported.
+	// TODO (rohany): This is a pointer that maybe we want a "typename"
+	//  tree object so we can access stuff like schema name?
+
+	// TODO (rohany): Lookup database in the uncommitedDatabase list.
+	// TODO (rohany): Lookup database in cache.
+
+	// TODO (rohany): Lookup schema.
+
+	// TODO (rohany): Once/If we have uncommitted types, look in the uncommitted
+	//  type cache.
+
+	// TODO (rohany): Otherwise, do a direct lookup (or try and acquire a lease)
+	//  on the descriptor holding the enum information.
+
+	return nil, nil
+}
+
 // getTableVersion returns a table descriptor with a version suitable for
 // the transaction: table.ModificationTime <= txn.Timestamp < expirationTime.
 // The table must be released by calling tc.releaseTables().

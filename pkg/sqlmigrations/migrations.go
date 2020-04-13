@@ -1311,7 +1311,7 @@ func createNewSystemNamespaceDescriptor(ctx context.Context, r runner) error {
 		//    idempotent semantics of the migration ensure that "namespace" maps to
 		//    the correct ID in the new system.namespace table after all tables are
 		//    copied over.
-		nameKey := sqlbase.NewPublicTableKey(
+		nameKey := sqlbase.NewPublicTableOrTypeKey(
 			sqlbase.NamespaceTable.GetParentID(), sqlbase.NamespaceTableName)
 		b.Put(nameKey.Key(), sqlbase.NamespaceTable.GetID())
 		b.Put(sqlbase.MakeDescMetadataKey(
@@ -1400,7 +1400,7 @@ func migrateSystemNamespace(ctx context.Context, r runner) error {
 				// deprecated ID.
 				continue
 			}
-			tableKey := sqlbase.NewTableKey(parentID, keys.PublicSchemaID, name)
+			tableKey := sqlbase.NewTableOrTypeKey(parentID, keys.PublicSchemaID, name)
 			if err := r.db.Put(ctx, tableKey.Key(), id); err != nil {
 				return err
 			}
