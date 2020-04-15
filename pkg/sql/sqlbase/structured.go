@@ -3884,6 +3884,26 @@ func (desc *TableDescriptor) SetAuditMode(mode tree.AuditMode) (bool, error) {
 	return prev != desc.AuditMode, nil
 }
 
+func (desc *TypeDescriptor) GetAuditMode() TableDescriptor_AuditMode {
+	return TableDescriptor_DISABLED
+}
+
+func (desc *TypeDescriptor) GetPrivileges() *PrivilegeDescriptor {
+	return nil
+}
+
+func (desc *TypeDescriptor) SetID(id ID) {
+	desc.ID = id
+}
+
+func (desc *TypeDescriptor) TypeName() string {
+	return "type"
+}
+
+func (desc *TypeDescriptor) SetName(name string) {
+	desc.Name = name
+}
+
 // GetAuditMode is part of the DescriptorProto interface.
 // This is a stub until per-database auditing is enabled.
 func (desc *DatabaseDescriptor) GetAuditMode() TableDescriptor_AuditMode {

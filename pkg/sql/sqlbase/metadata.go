@@ -49,6 +49,8 @@ type DescriptorProto interface {
 	GetAuditMode() TableDescriptor_AuditMode
 }
 
+var _ DescriptorProto = &TypeDescriptor{}
+
 // WrapDescriptor fills in a Descriptor.
 func WrapDescriptor(descriptor DescriptorProto) *Descriptor {
 	desc := &Descriptor{}
@@ -59,6 +61,8 @@ func WrapDescriptor(descriptor DescriptorProto) *Descriptor {
 		desc.Union = &Descriptor_Table{Table: t}
 	case *DatabaseDescriptor:
 		desc.Union = &Descriptor_Database{Database: t}
+	case *TypeDescriptor:
+		desc.Union = &Descriptor_Type{Type: t}
 	default:
 		panic(fmt.Sprintf("unknown descriptor type: %s", descriptor.TypeName()))
 	}

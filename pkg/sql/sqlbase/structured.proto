@@ -964,11 +964,42 @@ message DatabaseDescriptor {
   optional PrivilegeDescriptor privileges = 3;
 }
 
+message TypeDescriptor {
+  option (gogoproto.equal) = true;
+  // Needed for the descriptorProto interface.
+  option (gogoproto.goproto_getters) = true;
+
+  // TODO (rohany): What will go in here?
+
+  // We want a type type (i.e is this an enum, alias etc)
+
+  // Underlying types.T?
+
+  // For an enum, we want the mapping of val to name (and back?)
+
+  // Fields used for all kinds of types.
+
+  optional uint32 parent_id = 1
+    [(gogoproto.nullable) = false, (gogoproto.customname) = "ParentID", (gogoproto.casttype) = "ID"];
+  optional uint32 parent_schema_id = 2
+    [(gogoproto.nullable) = false, (gogoproto.customname) = "ParentSchemaID", (gogoproto.casttype) = "ID"];
+
+  optional string name = 3 [(gogoproto.nullable) = false];
+  optional uint32 id = 4 [(gogoproto.nullable) = false, (gogoproto.customname) = "ID", (gogoproto.casttype) = "ID"];
+  // TODO (rohany): store the oid separately, or use the ID as the oid.
+
+  // TODO (rohany): Do we need a draining names like the table descriptor?
+
+  // I think it makes sense to store the underlying types.T here? Or should
+  // there be a method that constructs the types.T from this desc?
+}
+
 // Descriptor is a union type holding either a table or database descriptor.
 message Descriptor {
   option (gogoproto.equal) = true;
   oneof union {
     TableDescriptor table = 1;
     DatabaseDescriptor database = 2;
+    TypeDescriptor type = 3;
   }
 }

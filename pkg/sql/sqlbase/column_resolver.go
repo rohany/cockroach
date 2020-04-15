@@ -205,6 +205,8 @@ func (r *ColumnResolver) findColHelper(colName string, colIdx, idx int) (int, er
 	return colIdx, nil
 }
 
+func (*TypeDescriptor) NameResolutionResult() {}
+
 // NameResolutionResult implements the tree.NameResolutionResult interface.
 func (*TableDescriptor) NameResolutionResult() {}
 

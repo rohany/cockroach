@@ -126,6 +126,24 @@ func ResolveMutableExistingObject(
 	return desc.(*MutableTableDescriptor), nil
 }
 
+//func ResolveExistingType(
+//	ctx context.Context,
+//	sc SchemaResolver,
+//	tn *ObjectName,
+//	required bool,
+//	requiredType ResolveRequiredType,
+//) (*sqlbase.TypeDescriptor, error) {
+//	lookupFlags := tree.ObjectLookupFlags{
+//		CommonLookupFlags: tree.CommonLookupFlags{Required: required},
+//		RequireMutable:    true,
+//	}
+//	desc, err := resolveExistingObjectImpl(ctx, sc, tn, lookupFlags, requiredType)
+//	if err != nil || desc == nil {
+//		return nil, err
+//	}
+//	return desc.(*sqlbase.TypeDescriptor), nil
+//}
+
 func resolveExistingObjectImpl(
 	ctx context.Context,
 	sc SchemaResolver,
