@@ -222,34 +222,34 @@ func (p *planner) ResolveUncachedTableDescriptor(
 // The object name is modified in-place with the result of the name
 // resolution.
 func ResolveTargetObject(
-	ctx context.Context, sc SchemaResolver, tn *TableName,
+	ctx context.Context, sc SchemaResolver, name ObjectName,
 ) (res *DatabaseDescriptor, err error) {
-	found, descI, err := tree.ResolveTarget(ctx, tn, sc, sc.CurrentDatabase(), sc.CurrentSearchPath())
+	found, descI, err := tree.ResolveTarget(ctx, name, sc, sc.CurrentDatabase(), sc.CurrentSearchPath())
 	if err != nil {
 		return nil, err
 	}
 	if !found {
-		if !tn.ExplicitSchema && !tn.ExplicitCatalog {
+		if !name.HasExplicitSchema() && !name.HasExplicitCatalog() {
 			return nil, pgerror.New(pgcode.InvalidName, "no database specified")
 		}
 		err = pgerror.Newf(pgcode.InvalidSchemaName,
 			"cannot create %q because the target database or schema does not exist",
-			tree.ErrString(tn))
+			tree.ErrString(name))
 		err = errors.WithHint(err, "verify that the current database and search_path are valid and/or the target database exists")
 		return nil, err
 	}
-	if tn.Schema() != tree.PublicSchema {
+	if name.Schema() != tree.PublicSchema {
 		return nil, pgerror.Newf(pgcode.InvalidName,
-			"schema cannot be modified: %q", tree.ErrString(&tn.TableNamePrefix))
+			"schema cannot be modified: %q", tree.ErrString(name.GetPrefix()))
 	}
 	return descI.(*DatabaseDescriptor), nil
 }
 
 func (p *planner) ResolveUncachedDatabase(
-	ctx context.Context, tn *TableName,
+	ctx context.Context, name ObjectName,
 ) (res *UncachedDatabaseDescriptor, err error) {
 	p.runWithOptions(resolveFlags{skipCache: true}, func() {
-		res, err = ResolveTargetObject(ctx, p, tn)
+		res, err = ResolveTargetObject(ctx, p, name)
 	})
 	return res, err
 }

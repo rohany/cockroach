@@ -190,7 +190,7 @@ const (
 
 // CreateType represents a CREATE TYPE statement.
 type CreateType struct {
-	TypeName *UnresolvedObjectName
+	TypeName *TypeName
 	Variety  CreateTypeVariety
 	// EnumLabels is set when this represents a CREATE TYPE ... AS ENUM statement.
 	EnumLabels []string

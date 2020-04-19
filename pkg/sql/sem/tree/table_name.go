@@ -15,6 +15,8 @@ package tree
 type ObjectName interface {
 	NodeFormatter
 
+	GetPrefix() *TableNamePrefix
+
 	Catalog() string
 	SetCatalog(Name)
 
@@ -93,6 +95,9 @@ func (tp *TableNamePrefix) Format(ctx *FmtCtx) {
 		ctx.FormatNode(&tp.SchemaName)
 	}
 }
+
+// SetSchema implements the ObjectName interface.
+func (tp *TableNamePrefix) GetPrefix() *TableNamePrefix { return tp }
 
 func (tp *TableNamePrefix) String() string { return AsString(tp) }
 

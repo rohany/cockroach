@@ -66,12 +66,7 @@ func (a UncachedPhysicalAccessor) GetDatabaseDesc(
 		return nil, nil
 	}
 
-	desc = &sqlbase.DatabaseDescriptor{}
-	if err := getDescriptorByID(ctx, txn, descID, desc); err != nil {
-		return nil, err
-	}
-
-	return desc, nil
+	return getDatabaseDescByID(ctx, txn, descID)
 }
 
 // IsValidSchema implements the SchemaAccessor interface.
@@ -211,15 +206,25 @@ func (a UncachedPhysicalAccessor) GetObjectDesc(
 		}
 	}
 
+	// Look up the object using the discovered database descriptor.
+	desc, err := getDescriptorByID(ctx, txn, descID)
+	if err != nil {
+		return nil, err
+	}
+
 	switch name.(type) {
 	case *TypeName:
-		return nil, errors.AssertionFailedf("physical access for types is unsupported")
+		typ, ok := desc.(*TypeDescriptor)
+		if !ok {
+			return nil, sqlbase.NewUndefinedTypeError(name)
+		}
+		// TODO (rohany): investigate whether we need the sort of states thing
+		//  in the bottom here.
+		return typ, nil
 	case *TableName:
-		// Look up the table using the discovered database descriptor.
-		desc := &sqlbase.TableDescriptor{}
-		err = getDescriptorByID(ctx, txn, descID, desc)
-		if err != nil {
-			return nil, err
+		table, ok := desc.(*TableDescriptor)
+		if !ok {
+			return nil, sqlbase.NewUndefinedRelationError(name)
 		}
 
 		// We have a descriptor, allow it to be in the PUBLIC or ADD state. Possibly
@@ -229,7 +234,7 @@ func (a UncachedPhysicalAccessor) GetObjectDesc(
 			sqlbase.TableDescriptor_PUBLIC:  true,
 			sqlbase.TableDescriptor_OFFLINE: flags.IncludeOffline,
 		}
-		if acceptableStates[desc.State] {
+		if acceptableStates[table.State] {
 			// Immediately after a RENAME an old name still points to the
 			// descriptor during the drain phase for the name. Do not
 			// return a descriptor during draining.
@@ -238,12 +243,12 @@ func (a UncachedPhysicalAccessor) GetObjectDesc(
 			// system.namespace_deprecated table when selecting from system.namespace.
 			// As this table can not be renamed by users, it is okay that the first
 			// check fails.
-			if desc.Name == name.Object() ||
+			if table.Name == name.Object() ||
 				name.Object() == sqlbase.NamespaceTableName && name.Catalog() == sqlbase.SystemDB.Name {
 				if flags.RequireMutable {
-					return sqlbase.NewMutableExistingTableDescriptor(*desc), nil
+					return sqlbase.NewMutableExistingTableDescriptor(*table), nil
 				}
-				return sqlbase.NewImmutableTableDescriptor(*desc), nil
+				return sqlbase.NewImmutableTableDescriptor(*table), nil
 			}
 		}
 	}

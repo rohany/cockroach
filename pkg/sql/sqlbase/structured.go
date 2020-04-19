@@ -3971,6 +3971,11 @@ func (desc *MutableTableDescriptor) TableDesc() *TableDescriptor {
 	return &desc.TableDescriptor
 }
 
+// TypeDesc implements the ObjectDescriptor interface.
+func (desc *MutableTableDescriptor) TypeDesc() *TypeDescriptor {
+	return nil
+}
+
 // IsShardColumn returns true if col corresponds to a non-dropped hash sharded
 // index. This method assumes that col is currently a member of desc.
 func (desc *MutableTableDescriptor) IsShardColumn(col *ColumnDescriptor) bool {
@@ -3985,6 +3990,41 @@ func (desc *MutableTableDescriptor) IsShardColumn(col *ColumnDescriptor) bool {
 // TableDesc implements the ObjectDescriptor interface.
 func (desc *ImmutableTableDescriptor) TableDesc() *TableDescriptor {
 	return &desc.TableDescriptor
+}
+
+// TODO (rohany): Drop the needed "implements x interface here".
+// TableDesc implements the ObjectDescriptor interface.
+func (desc *ImmutableTableDescriptor) TypeDesc() *TypeDescriptor {
+	return nil
+}
+
+func (desc *TypeDescriptor) TableDesc() *TableDescriptor {
+	return nil
+}
+
+func (desc *TypeDescriptor) TypeDesc() *TypeDescriptor {
+	return desc
+}
+
+func (desc *TypeDescriptor) NameResolutionResult() {}
+func (desc *TypeDescriptor) GetAuditMode() TableDescriptor_AuditMode {
+	return TableDescriptor_DISABLED
+}
+
+func (desc *TypeDescriptor) GetPrivileges() *PrivilegeDescriptor {
+	return nil
+}
+
+func (desc *TypeDescriptor) SetID(id ID) {
+	desc.ID = id
+}
+
+func (desc *TypeDescriptor) TypeName() string {
+	return "type"
+}
+
+func (desc *TypeDescriptor) SetName(name string) {
+	desc.Name = name
 }
 
 // DatabaseKey implements DescriptorKey.

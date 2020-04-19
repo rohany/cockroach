@@ -57,6 +57,9 @@ type (
 	// TableDescriptor is provided for convenience and to make the
 	// interface definitions below more intuitive.
 	TableDescriptor = sqlbase.TableDescriptor
+	// TypeDescriptor is provided for convenience and to make the
+	// interface definitions below more intuitive.
+	TypeDescriptor = sqlbase.TypeDescriptor
 	// ViewDescriptor is provided for convenience and to make the
 	// interface definitions below more intuitive.
 	ViewDescriptor = sqlbase.TableDescriptor
@@ -72,8 +75,13 @@ type (
 type ObjectDescriptor interface {
 	tree.NameResolutionResult
 
-	// TableDesc returns the underlying table descriptor.
+	// TableDesc returns the underlying table descriptor if the ObjectDescriptor
+	// is a table or nil otherwise.
 	TableDesc() *TableDescriptor
+
+	// TypeDesc returns the underlying type descriptor if the ObjectDescriptor
+	// is a type or nil otherwise.
+	TypeDesc() *TypeDescriptor
 }
 
 // SchemaAccessor provides access to database descriptors.

@@ -5461,8 +5461,9 @@ create_type_stmt:
   // Enum types.
   CREATE TYPE type_name AS ENUM '(' opt_enum_val_list ')'
   {
+    typName := $3.unresolvedObjectName().ToTypeName()
     $$.val = &tree.CreateType{
-      TypeName: $3.unresolvedObjectName(),
+      TypeName: &typName,
       Variety: tree.Enum,
       EnumLabels: $7.strs(),
     }
