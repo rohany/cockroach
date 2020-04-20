@@ -16,6 +16,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/keys"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 	"github.com/cockroachdb/cockroach/pkg/sql/sqlbase"
+	"github.com/cockroachdb/cockroach/pkg/sql/types"
 	"github.com/cockroachdb/cockroach/pkg/util/errorutil/unimplemented"
 	"github.com/cockroachdb/errors"
 )
@@ -91,6 +92,7 @@ func (p *planner) createEnum(params runParams, n *tree.CreateType) error {
 		ParentSchemaID: schemaID,
 		Name:           n.TypeName.Type(),
 		ID:             id,
+		Type:           *types.Int,
 	}
 	return p.createDescriptorWithID(
 		params.ctx,

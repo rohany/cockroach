@@ -1040,7 +1040,8 @@ func (u *sqlSymUnion) typeReferences() []tree.ResolvableTypeReference {
 %type <str> unreserved_keyword type_func_name_keyword type_func_name_no_crdb_extra_keyword type_func_name_crdb_extra_keyword
 %type <str> col_name_keyword reserved_keyword cockroachdb_extra_reserved_keyword extra_var_value
 
-%type <str> complex_type_name general_type_name
+%type <str> general_type_name
+%type <tree.ResolvableTypeReference> complex_type_name
 
 %type <tree.ConstraintTableDef> table_constraint constraint_elem create_as_constraint_def create_as_constraint_elem
 %type <tree.TableDef> index_def
@@ -5471,9 +5472,8 @@ create_type_stmt:
   // Enum types.
   CREATE TYPE type_name AS ENUM '(' opt_enum_val_list ')'
   {
-    typName := $3.unresolvedObjectName().ToTypeName()
     $$.val = &tree.CreateType{
-      TypeName: &typName,
+      TypeName: $3.unresolvedObjectName().ToTypeName(),
       Variety: tree.Enum,
       EnumLabels: $7.strs(),
     }
@@ -7416,11 +7416,21 @@ general_type_name:
 complex_type_name:
   general_type_name '.' unrestricted_name
   {
-    return unimplemented(sqllex, "qualified types")
+    aIdx := sqllex.(*lexer).NewAnnotation()
+    typName, err := tree.NewUnresolvedObjectName(2, [3]string{$3, $1}, aIdx)
+    if err != nil {
+      return setErr(sqllex, err)
+    }
+    $$.val = typName.ToTypeName()
   }
 | general_type_name '.' unrestricted_name '.' unrestricted_name
   {
-    return unimplemented(sqllex, "qualified types")
+    aIdx := sqllex.(*lexer).NewAnnotation()
+    typName, err := tree.NewUnresolvedObjectName(3, [3]string{$5, $3, $1}, aIdx)
+    if err != nil {
+      return setErr(sqllex, err)
+    }
+    $$.val = typName.ToTypeName()
   }
 
 simple_typename:
@@ -7443,20 +7453,25 @@ simple_typename:
         }
     } else {
       var ok bool
-      var unimp int
-      $$.val, ok, unimp = types.TypeForNonKeywordTypeName($1)
+      $$.val, ok, _ = types.TypeForNonKeywordTypeName($1)
       if !ok {
-        switch unimp {
-          case 0:
-            // Note: we can only report an unimplemented error for specific
-            // known type names. Anything else may return sensitive info.
-            sqllex.Error(fmt.Sprintf("type %q does not exist", $1))
-            return 1
-          case -1:
-            return unimplemented(sqllex, "type name " + $1)
-          default:
-            return unimplementedWithIssueDetail(sqllex, unimp, $1)
+        aIdx := sqllex.(*lexer).NewAnnotation()
+        typName, err := tree.NewUnresolvedObjectName(1, [3]string{$1}, aIdx)
+        if err != nil {
+          return setErr(sqllex, err)
         }
+        $$.val = typName.ToTypeName()
+        // switch unimp {
+        //   case 0:
+        //     // Note: we can only report an unimplemented error for specific
+        //     // known type names. Anything else may return sensitive info.
+        //     sqllex.Error(fmt.Sprintf("type %q does not exist", $1))
+        //     return 1
+        //   case -1:
+        //     return unimplemented(sqllex, "type name " + $1)
+        //   default:
+        //     return unimplementedWithIssueDetail(sqllex, unimp, $1)
+        // }
       }
     }
   }
@@ -8632,22 +8647,29 @@ typed_literal:
           $$.val = &tree.CastExpr{Expr: tree.NewStrVal($2), Type: &types.Serial8Type, SyntaxMode: tree.CastPrepend}
         }
       } else {
-        typ, ok, unimp := types.TypeForNonKeywordTypeName(typName)
+        typ, ok, _ := types.TypeForNonKeywordTypeName(typName)
         // TODO (rohany): In the !ok case, we will soon return an unresolved type.
         if !ok {
-          switch unimp {
-            case 0:
-              // Note: we can only report an unimplemented error for specific
-              // known type names. Anything else may return PII.
-              sqllex.Error(fmt.Sprintf("type %q does not exist", typName))
-              return 1
-            case -1:
-              return unimplemented(sqllex, "type name " + typName)
-            default:
-              return unimplementedWithIssueDetail(sqllex, unimp, typName)
+          aIdx := sqllex.(*lexer).NewAnnotation()
+          typNameRef, err := tree.NewUnresolvedObjectName(1, [3]string{typName}, aIdx)
+          if err != nil {
+            return setErr(sqllex, err)
           }
+          $$.val = &tree.CastExpr{Expr: tree.NewStrVal($2), Type: typNameRef.ToTypeName(), SyntaxMode: tree.CastPrepend}
+          // switch unimp {
+          //   case 0:
+          //     // Note: we can only report an unimplemented error for specific
+          //     // known type names. Anything else may return PII.
+          //     sqllex.Error(fmt.Sprintf("type %q does not exist", typName))
+          //     return 1
+          //   case -1:
+          //     return unimplemented(sqllex, "type name " + typName)
+          //   default:
+          //     return unimplementedWithIssueDetail(sqllex, unimp, typName)
+          // }
+        } else {
+          $$.val = &tree.CastExpr{Expr: tree.NewStrVal($2), Type: typ, SyntaxMode: tree.CastPrepend}
         }
-      $$.val = &tree.CastExpr{Expr: tree.NewStrVal($2), Type: typ, SyntaxMode: tree.CastPrepend}
       }
     } else {
       return unimplemented(sqllex, "generic-type-name prepended casts")

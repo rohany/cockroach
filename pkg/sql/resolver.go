@@ -24,6 +24,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 	"github.com/cockroachdb/cockroach/pkg/sql/sessiondata"
 	"github.com/cockroachdb/cockroach/pkg/sql/sqlbase"
+	"github.com/cockroachdb/cockroach/pkg/sql/types"
 	"github.com/cockroachdb/cockroach/pkg/util/hlc"
 	"github.com/cockroachdb/errors"
 )
@@ -38,6 +39,7 @@ import (
 type SchemaResolver interface {
 	tree.ObjectNameExistingResolver
 	tree.ObjectNameTargetResolver
+	// tree.TypeReferenceResolver
 
 	Txn() *kv.Txn
 	LogicalSchemaAccessor() SchemaAccessor
@@ -126,6 +128,21 @@ func ResolveMutableExistingTableObject(
 	return desc.(*MutableTableDescriptor), nil
 }
 
+func (p *planner) ResolveType(name *TypeName) (*types.T, error) {
+	lookupFlags := tree.ObjectLookupFlags{
+		CommonLookupFlags: tree.CommonLookupFlags{Required: true},
+	}
+	desc, err := resolveExistingObjectImpl(context.Background(), p, name, lookupFlags, ResolveRequireTypeDesc)
+	if err != nil || desc == nil {
+		return nil, err
+	}
+	typeDesc, ok := desc.(*TypeDescriptor)
+	if !ok {
+		return nil, sqlbase.NewUndefinedTypeError(name)
+	}
+	return &typeDesc.Type, nil
+}
+
 func resolveExistingObjectImpl(
 	ctx context.Context,
 	sc SchemaResolver,
@@ -139,11 +156,20 @@ func resolveExistingObjectImpl(
 	}
 	if !found {
 		if lookupFlags.Required {
+			// TODO (rohany): need to throw the correct error depending on required type?
 			return nil, sqlbase.NewUndefinedRelationError(tn)
 		}
 		return nil, nil
 	}
 	obj := descI.(ObjectDescriptor)
+
+	if requiredType == ResolveRequireTypeDesc {
+		typ := obj.TypeDesc()
+		if typ == nil {
+			return nil, sqlbase.NewWrongObjectTypeError(tn, requiredTypeNames[requiredType])
+		}
+		return typ, nil
+	}
 
 	goodType := true
 	switch requiredType {
@@ -265,6 +291,7 @@ const (
 	ResolveRequireViewDesc
 	ResolveRequireTableOrViewDesc
 	ResolveRequireSequenceDesc
+	ResolveRequireTypeDesc
 )
 
 var requiredTypeNames = [...]string{
@@ -272,6 +299,7 @@ var requiredTypeNames = [...]string{
 	ResolveRequireViewDesc:        "view",
 	ResolveRequireTableOrViewDesc: "table or view",
 	ResolveRequireSequenceDesc:    "sequence",
+	ResolveRequireTypeDesc:        "type",
 }
 
 // LookupSchema implements the tree.ObjectNameTargetResolver interface.
@@ -292,12 +320,12 @@ func (p *planner) LookupSchema(
 
 // LookupObject implements the tree.ObjectNameExistingResolver interface.
 func (p *planner) LookupObject(
-	ctx context.Context, lookupFlags tree.ObjectLookupFlags, dbName, scName, tbName string,
+	ctx context.Context, lookupFlags tree.ObjectLookupFlags, name ObjectName,
 ) (found bool, objMeta tree.NameResolutionResult, err error) {
 	sc := p.LogicalSchemaAccessor()
-	p.tableName = tree.MakeTableNameWithSchema(tree.Name(dbName), tree.Name(scName), tree.Name(tbName))
+	//p.tableName = tree.MakeTableNameWithSchema(tree.Name(dbName), tree.Name(scName), tree.Name(tbName))
 	lookupFlags.CommonLookupFlags = p.CommonLookupFlags(false /* required */)
-	objDesc, err := sc.GetObjectDesc(ctx, p.txn, p.ExecCfg().Settings, &p.tableName, lookupFlags)
+	objDesc, err := sc.GetObjectDesc(ctx, p.txn, p.ExecCfg().Settings, name, lookupFlags)
 	return objDesc != nil, objDesc, err
 }
 
@@ -568,11 +596,11 @@ var _ SchemaResolver = &fkSelfResolver{}
 
 // LookupObject implements the tree.ObjectNameExistingResolver interface.
 func (r *fkSelfResolver) LookupObject(
-	ctx context.Context, lookupFlags tree.ObjectLookupFlags, dbName, scName, tbName string,
+	ctx context.Context, lookupFlags tree.ObjectLookupFlags, obj ObjectName,
 ) (found bool, objMeta tree.NameResolutionResult, err error) {
-	if dbName == r.newTableName.Catalog() &&
-		scName == r.newTableName.Schema() &&
-		tbName == r.newTableName.Table() {
+	if obj.Catalog() == r.newTableName.Catalog() &&
+		obj.Schema() == r.newTableName.Schema() &&
+		obj.Object() == r.newTableName.Table() {
 		table := r.newTableDesc
 		if lookupFlags.RequireMutable {
 			return true, sqlbase.NewMutableExistingTableDescriptor(*table), nil
@@ -580,7 +608,7 @@ func (r *fkSelfResolver) LookupObject(
 		return true, sqlbase.NewImmutableTableDescriptor(*table), nil
 	}
 	lookupFlags.IncludeOffline = false
-	return r.SchemaResolver.LookupObject(ctx, lookupFlags, dbName, scName, tbName)
+	return r.SchemaResolver.LookupObject(ctx, lookupFlags, obj)
 }
 
 // internalLookupCtx can be used in contexts where all descriptors

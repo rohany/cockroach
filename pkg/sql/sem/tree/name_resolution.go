@@ -254,7 +254,8 @@ type SchemaMeta interface {
 // is used to specify if a MutableTableDescriptor is to be returned in the
 // result.
 type ObjectNameExistingResolver interface {
-	LookupObject(ctx context.Context, flags ObjectLookupFlags, dbName, scName, obName string) (
+	// TODO (rohany): object name must be fully qualified.
+	LookupObject(ctx context.Context, flags ObjectLookupFlags, name ObjectName) (
 		found bool, objMeta NameResolutionResult, err error,
 	)
 }
@@ -275,6 +276,10 @@ func ResolveExisting(
 	curDb string,
 	searchPath sessiondata.SearchPath,
 ) (bool, NameResolutionResult, error) {
+	objCopy := obj.Copy()
+	objCopy.SetExplicitCatalog(true)
+	objCopy.SetExplicitSchema(true)
+
 	if obj.HasExplicitSchema() {
 		// pg_temp can be used as an alias for the current sessions temporary schema.
 		// We must perform this resolution before looking up the object. This
@@ -285,7 +290,9 @@ func ResolveExisting(
 		}
 		if obj.HasExplicitCatalog() {
 			// Already 3 parts: nothing to search. Delegate to the resolver.
-			return r.LookupObject(ctx, lookupFlags, obj.Catalog(), scName, obj.Object())
+			objCopy.SetCatalog(Name(obj.Catalog()))
+			objCopy.SetSchema(Name(scName))
+			return r.LookupObject(ctx, lookupFlags, objCopy)
 		}
 		// Two parts: D.T.
 		// Try to use the current database, and be satisfied if it's sufficient to find the object.
@@ -296,14 +303,18 @@ func ResolveExisting(
 		// pg_catalog.pg_tables` is meant to show all tables across all
 		// databases when there is no current database set.
 
-		if found, objMeta, err := r.LookupObject(ctx, lookupFlags, curDb, scName, obj.Object()); found || err != nil {
+		objCopy.SetCatalog(Name(curDb))
+		objCopy.SetSchema(Name(scName))
+		if found, objMeta, err := r.LookupObject(ctx, lookupFlags, objCopy); found || err != nil {
 			if err == nil {
 				obj.SetCatalog(Name(curDb))
 			}
 			return found, objMeta, err
 		}
 		// No luck so far. Compatibility with CockroachDB v1.1: try D.public.T instead.
-		if found, objMeta, err := r.LookupObject(ctx, lookupFlags, obj.Schema(), PublicSchema, obj.Object()); found || err != nil {
+		objCopy.SetCatalog(Name(obj.Schema()))
+		objCopy.SetSchema(PublicSchemaName)
+		if found, objMeta, err := r.LookupObject(ctx, lookupFlags, objCopy); found || err != nil {
 			if err == nil {
 				obj.SetCatalog(Name(obj.Schema()))
 				obj.SetSchema(PublicSchemaName)
@@ -318,7 +329,9 @@ func ResolveExisting(
 	// This is a naked table name. Use the search path.
 	iter := searchPath.Iter()
 	for next, ok := iter.Next(); ok; next, ok = iter.Next() {
-		if found, objMeta, err := r.LookupObject(ctx, lookupFlags, curDb, next, obj.Object()); found || err != nil {
+		objCopy.SetCatalog(Name(curDb))
+		objCopy.SetSchema(Name(next))
+		if found, objMeta, err := r.LookupObject(ctx, lookupFlags, objCopy); found || err != nil {
 			if err == nil {
 				obj.SetCatalog(Name(curDb))
 				obj.SetSchema(Name(next))
@@ -544,6 +557,10 @@ type DatabaseListFlags struct {
 	// have an explicit schema and catalog part.
 	ExplicitPrefix bool
 }
+
+type BackingDescType int
+
+const ()
 
 // ObjectLookupFlags is the flag struct suitable for GetObjectDesc().
 type ObjectLookupFlags struct {

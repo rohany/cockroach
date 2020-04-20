@@ -20,7 +20,7 @@ import (
 // *types.T's. In practice, this will probably be implemented by
 // the planner, but for now it is a dummy interface.
 type TypeReferenceResolver interface {
-	ResolveType() (*types.T, error)
+	ResolveType(*TypeName) (*types.T, error)
 }
 
 // ResolvableTypeReference represents a type that is possibly unknown
@@ -40,6 +40,8 @@ func ResolveType(ref ResolvableTypeReference, resolver TypeReferenceResolver) (*
 			return nil, err
 		}
 		return types.MakeArray(typ), nil
+	case *TypeName:
+		return resolver.ResolveType(t)
 	}
 	return nil, errors.AssertionFailedf("Hiya!")
 }
@@ -82,7 +84,7 @@ func (node *ArrayTypeReference) SQLString() string {
 }
 
 // SQLString implements the ResolvableTypeReference interface.
-func (name *UnresolvedObjectName) SQLString() string {
+func (name *TypeName) SQLString() string {
 	return name.String()
 }
 
@@ -95,6 +97,6 @@ func IsReferenceSerialType(ref ResolvableTypeReference) bool {
 	return false
 }
 
-var _ ResolvableTypeReference = &UnresolvedObjectName{}
+var _ ResolvableTypeReference = &TypeName{}
 var _ ResolvableTypeReference = &ArrayTypeReference{}
 var _ ResolvableTypeReference = &types.T{}

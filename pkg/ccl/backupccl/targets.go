@@ -78,20 +78,20 @@ func (r *descriptorResolver) LookupSchema(
 
 // LookupObject implements the tree.ObjectNameExistingResolver interface.
 func (r *descriptorResolver) LookupObject(
-	_ context.Context, flags tree.ObjectLookupFlags, dbName, scName, obName string,
+	_ context.Context, flags tree.ObjectLookupFlags, object sql.ObjectName,
 ) (bool, tree.NameResolutionResult, error) {
 	if flags.RequireMutable {
 		panic("did not expect request for mutable descriptor")
 	}
-	if scName != tree.PublicSchema {
+	if object.Schema() != tree.PublicSchema {
 		return false, nil, nil
 	}
-	dbID, ok := r.dbsByName[dbName]
+	dbID, ok := r.dbsByName[object.Catalog()]
 	if !ok {
 		return false, nil, nil
 	}
 	if objMap, ok := r.objsByName[dbID]; ok {
-		if objID, ok := objMap[obName]; ok {
+		if objID, ok := objMap[object.Object()]; ok {
 			return true, r.descByID[objID], nil
 		}
 	}

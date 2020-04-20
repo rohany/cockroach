@@ -988,6 +988,10 @@ message TypeDescriptor {
   optional uint32 id = 4 [(gogoproto.nullable) = false, (gogoproto.customname) = "ID", (gogoproto.casttype) = "ID"];
   // TODO (rohany): store the oid separately, or use the ID as the oid.
 
+  // used for testing rn
+  optional bytes type = 5 [(gogoproto.nullable) = false, (gogoproto.customtype) = "github.com/cockroachdb/cockroach/pkg/sql/types.T"];
+
+
   // TODO (rohany): Do we need a draining names like the table descriptor?
 
   // I think it makes sense to store the underlying types.T here? Or should

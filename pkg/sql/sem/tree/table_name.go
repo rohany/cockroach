@@ -31,6 +31,8 @@ type ObjectName interface {
 	HasExplicitSchema() bool
 	SetExplicitSchema(bool)
 
+	Copy() ObjectName
+
 	objectName()
 }
 
@@ -54,6 +56,11 @@ func (t *TypeName) objectName()  {}
 // non-default value; this encourages the use of the constructors below.
 type TableName struct {
 	tblName
+}
+
+func (t *TableName) Copy() ObjectName {
+	tcopy := *t
+	return &tcopy
 }
 
 type tblName struct {
@@ -276,6 +283,11 @@ var _ = (*TypeName).Type
 // Type returns the unqualified type name.
 func (t *TypeName) Type() string {
 	return string(t.TableName)
+}
+
+func (t *TypeName) Copy() ObjectName {
+	tcopy := *t
+	return &tcopy
 }
 
 // Format implements the NodeFormatter interface.

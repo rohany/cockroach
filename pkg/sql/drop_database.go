@@ -110,15 +110,13 @@ func (p *planner) DropDatabase(ctx context.Context, n *tree.DropDatabase) (planN
 
 	td := make([]toDelete, 0, len(tbNames))
 	for i, tbName := range tbNames {
-		found, desc, err := p.LookupObject(
+		var found, desc, err = p.LookupObject(
 			ctx,
 			tree.ObjectLookupFlags{
 				CommonLookupFlags: tree.CommonLookupFlags{Required: true},
 				RequireMutable:    true,
 			},
-			tbName.Catalog(),
-			tbName.Schema(),
-			tbName.Table(),
+			&tbName,
 		)
 		if err != nil {
 			return nil, err

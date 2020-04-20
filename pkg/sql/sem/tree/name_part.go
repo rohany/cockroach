@@ -321,8 +321,8 @@ func (u *UnresolvedObjectName) ToTableName() TableName {
 	return TableName{u.toTblName()}
 }
 
-func (u *UnresolvedObjectName) ToTypeName() TypeName {
-	return TypeName{u.toTblName()}
+func (u *UnresolvedObjectName) ToTypeName() *TypeName {
+	return &TypeName{u.toTblName()}
 }
 
 // ToUnresolvedName converts the unresolved object name to the more general

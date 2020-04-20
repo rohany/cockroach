@@ -2053,6 +2053,7 @@ func (ex *connExecutor) resetPlanner(
 	p.semaCtx = tree.MakeSemaContext()
 	p.semaCtx.Location = &ex.sessionData.DataConversion.Location
 	p.semaCtx.SearchPath = ex.sessionData.SearchPath
+	p.semaCtx.TypeReferenceResolver = p
 	p.semaCtx.AsOfTimestamp = nil
 	p.semaCtx.Annotations = nil
 

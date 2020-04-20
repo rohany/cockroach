@@ -280,8 +280,9 @@ func (r fkResolver) ObjectLookupFlags(required bool, requireMutable bool) tree.O
 
 // Implements the tree.ObjectNameExistingResolver interface.
 func (r fkResolver) LookupObject(
-	ctx context.Context, lookupFlags tree.ObjectLookupFlags, dbName, scName, obName string,
+	ctx context.Context, lookupFlags tree.ObjectLookupFlags, object sql.ObjectName,
 ) (found bool, objMeta tree.NameResolutionResult, err error) {
+	_, scName, obName := object.Catalog(), object.Schema(), object.Object()
 	if scName != "" {
 		obName = strings.TrimPrefix(obName, scName+".")
 	}
