@@ -94,10 +94,6 @@ func getCreateTypeParams(
 }
 
 func (p *planner) createEnum(params runParams, n *tree.CreateType) error {
-	if len(n.EnumLabels) > 0 {
-		return unimplemented.NewWithIssue(24873, "CREATE TYPE")
-	}
-
 	// Resolve the desired new type name.
 	typeName, db, err := resolveNewTypeName(params, n.TypeName)
 	if err != nil {
@@ -111,6 +107,15 @@ func (p *planner) createEnum(params runParams, n *tree.CreateType) error {
 		return err
 	}
 
+	// TODO (rohany): actually use the byte generation methods.
+	members := make([]sqlbase.TypeDescriptor_EnumMember, len(n.EnumLabels))
+	for i := range n.EnumLabels {
+		members[i] = sqlbase.TypeDescriptor_EnumMember{
+			LogicalRepresentation:  n.EnumLabels[i],
+			PhysicalRepresentation: []byte{byte(i)},
+		}
+	}
+
 	// TODO (rohany): We need to generate an oid for this type!
 	typeDesc := &sqlbase.TypeDescriptor{
 		ParentID:       db.ID,
@@ -118,7 +123,9 @@ func (p *planner) createEnum(params runParams, n *tree.CreateType) error {
 		Name:           typeName.Type(),
 		ID:             id,
 		Kind:           sqlbase.TypeDescriptor_ENUM,
+		EnumMembers:    members,
 	}
+
 	return p.createDescriptorWithID(
 		params.ctx,
 		typeKey.Key(),
