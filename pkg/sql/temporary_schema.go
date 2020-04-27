@@ -226,7 +226,9 @@ func cleanupSchemaObjects(
 			ctx,
 			txn,
 			settings,
-			&tbName,
+			tbName.Catalog(),
+			tbName.Schema(),
+			tbName.Table(),
 			tree.ObjectLookupFlagsWithRequired(),
 		)
 		if err != nil {
