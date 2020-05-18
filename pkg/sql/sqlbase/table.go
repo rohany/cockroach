@@ -182,7 +182,7 @@ func MakeColumnDefDescs(
 		// Otherwise we want to keep the default expression nil.
 		if typedExpr != tree.DNull {
 			d.DefaultExpr.Expr = typedExpr
-			s := tree.Serialize(d.DefaultExpr.Expr)
+			s := tree.AsStringWithFlags(d.DefaultExpr.Expr, tree.FmtDistSQLSerialization)
 			col.DefaultExpr = &s
 		}
 	}

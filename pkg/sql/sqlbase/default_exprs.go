@@ -23,7 +23,10 @@ import (
 // For every column that has no default expression, a NULL expression is reported
 // as default.
 func MakeDefaultExprs(
-	cols []ColumnDescriptor, txCtx *transform.ExprTransformContext, evalCtx *tree.EvalContext,
+	cols []ColumnDescriptor,
+	txCtx *transform.ExprTransformContext,
+	evalCtx *tree.EvalContext,
+	semaCtx *tree.SemaContext,
 ) ([]tree.TypedExpr, error) {
 	// Check to see if any of the columns have DEFAULT expressions. If there
 	// are no DEFAULT expressions, we don't bother with constructing the
@@ -61,7 +64,7 @@ func MakeDefaultExprs(
 			continue
 		}
 		expr := exprs[defExprIdx]
-		typedExpr, err := tree.TypeCheck(expr, nil, col.Type)
+		typedExpr, err := tree.TypeCheck(expr, semaCtx, col.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -85,7 +88,7 @@ func ProcessDefaultColumns(
 	cols = processColumnSet(cols, tableDesc, func(col *ColumnDescriptor) bool {
 		return col.DefaultExpr != nil
 	})
-	defaultExprs, err := MakeDefaultExprs(cols, txCtx, evalCtx)
+	defaultExprs, err := MakeDefaultExprs(cols, txCtx, evalCtx, nil)
 	return cols, defaultExprs, err
 }
 

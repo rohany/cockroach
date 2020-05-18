@@ -60,7 +60,12 @@ func newColumnBackfiller(
 	}
 	cb.backfiller.chunks = cb
 
-	if err := cb.ColumnBackfiller.Init(cb.flowCtx.NewEvalCtx(), cb.desc); err != nil {
+	// Copy in the DB pointer from flowCtx into evalCtx, because the Init
+	// step needs access to the DB.
+	// TODO (rohany): Not sure why this evalCtx doesn't have a set DB in the first place.
+	evalCtx := flowCtx.NewEvalCtx()
+	evalCtx.DB = flowCtx.Cfg.DB
+	if err := cb.ColumnBackfiller.Init(evalCtx, cb.desc); err != nil {
 		return nil, err
 	}
 

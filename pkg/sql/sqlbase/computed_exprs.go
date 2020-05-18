@@ -53,21 +53,21 @@ func (*RowIndexedVarContainer) IndexedVarNodeFormatter(idx int) tree.NodeFormatt
 	return nil
 }
 
-// descContainer is a helper type that implements tree.IndexedVarContainer; it
+// DescContainer is a helper type that implements tree.IndexedVarContainer; it
 // is used to type check computed columns and does not support evaluation.
-type descContainer struct {
-	cols []ColumnDescriptor
+type DescContainer struct {
+	Cols []ColumnDescriptor
 }
 
-func (j *descContainer) IndexedVarEval(idx int, ctx *tree.EvalContext) (tree.Datum, error) {
+func (j *DescContainer) IndexedVarEval(idx int, ctx *tree.EvalContext) (tree.Datum, error) {
 	panic("unsupported")
 }
 
-func (j *descContainer) IndexedVarResolvedType(idx int) *types.T {
-	return j.cols[idx].Type
+func (j *DescContainer) IndexedVarResolvedType(idx int) *types.T {
+	return j.Cols[idx].Type
 }
 
-func (*descContainer) IndexedVarNodeFormatter(idx int) tree.NodeFormatter {
+func (*DescContainer) IndexedVarNodeFormatter(idx int) tree.NodeFormatter {
 	return nil
 }
 
@@ -92,6 +92,7 @@ func MakeComputedExprs(
 	tn *tree.TableName,
 	txCtx *transform.ExprTransformContext,
 	evalCtx *tree.EvalContext,
+	semaCtx *tree.SemaContext,
 	addingCols bool,
 ) ([]tree.TypedExpr, error) {
 	// Check to see if any of the columns have computed expressions. If there
@@ -126,16 +127,15 @@ func MakeComputedExprs(
 	// columns can reference other columns and thus need to be able to resolve
 	// column names (at this stage they only need to resolve the types so that
 	// the expressions can be typechecked - we have no need to evaluate them).
-	iv := &descContainer{tableDesc.Columns}
+	iv := &DescContainer{tableDesc.Columns}
 	ivarHelper := tree.MakeIndexedVarHelper(iv, len(tableDesc.Columns))
 
 	source := NewSourceInfoForSingleTable(*tn, ResultColumnsFromColDescs(tableDesc.GetID(), tableDesc.Columns))
-	semaCtx := tree.MakeSemaContext()
 	semaCtx.IVarContainer = iv
 
 	addColumnInfo := func(col *ColumnDescriptor) {
 		ivarHelper.AppendSlot()
-		iv.cols = append(iv.cols, *col)
+		iv.Cols = append(iv.Cols, *col)
 		newCols := ResultColumnsFromColDescs(tableDesc.GetID(), []ColumnDescriptor{*col})
 		source.SourceColumns = append(source.SourceColumns, newCols...)
 	}
@@ -156,7 +156,7 @@ func MakeComputedExprs(
 			return nil, err
 		}
 
-		typedExpr, err := tree.TypeCheck(expr, &semaCtx, col.Type)
+		typedExpr, err := tree.TypeCheck(expr, semaCtx, col.Type)
 		if err != nil {
 			return nil, err
 		}

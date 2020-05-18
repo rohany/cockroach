@@ -1384,7 +1384,7 @@ func MakeTableDesc(
 			if err != nil {
 				return desc, err
 			}
-			serialized := tree.Serialize(expr)
+			serialized := tree.AsStringWithFlags(expr, tree.FmtDistSQLSerialization)
 			col.ComputeExpr = &serialized
 		}
 	}

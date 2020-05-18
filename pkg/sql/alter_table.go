@@ -260,6 +260,23 @@ func (n *alterTableNode) startExec(params runParams) error {
 				if err := validateComputedColumn(n.tableDesc, d, &params.p.semaCtx); err != nil {
 					return err
 				}
+				desc := n.tableDesc
+				iv := &sqlbase.DescContainer{Cols: desc.Columns}
+				for i := range desc.Mutations {
+					mut := &desc.Mutations[i]
+					if col := mut.GetColumn(); col != nil && mut.Direction == sqlbase.DescriptorMutation_ADD {
+						iv.Cols = append(iv.Cols, *col)
+					}
+				}
+				params.p.semaCtx.IVarContainer = iv
+				typed, err := d.Computed.Expr.TypeCheck(&params.p.semaCtx, types.Any)
+				if err != nil {
+					return err
+				}
+				fmt.Println("starting")
+				s := tree.AsStringWithFlags(typed, tree.FmtDistSQLSerialization)
+				fmt.Println("computeexpr is", s)
+				col.ComputeExpr = &s
 			}
 
 		case *tree.AlterTableAddConstraint:

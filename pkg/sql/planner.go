@@ -465,6 +465,9 @@ func (p *planner) LookupTableByID(ctx context.Context, tableID sqlbase.ID) (row.
 		}
 		return row.TableEntry{}, err
 	}
+	if err := p.maybeHydrateTypesInDescriptor(ctx, table); err != nil {
+		return row.TableEntry{}, err
+	}
 	return row.TableEntry{Desc: table}, nil
 }
 

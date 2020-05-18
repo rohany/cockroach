@@ -17,6 +17,7 @@ import (
 
 	"github.com/cockroachdb/cockroach/pkg/kv"
 	"github.com/cockroachdb/cockroach/pkg/roachpb"
+	"github.com/cockroachdb/cockroach/pkg/sql/execinfrapb"
 	"github.com/cockroachdb/cockroach/pkg/sql/row"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/transform"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
@@ -66,7 +67,10 @@ func (cb *ColumnBackfiller) Init(
 ) error {
 	cb.evalCtx = evalCtx
 	var dropped []sqlbase.ColumnDescriptor
+	cols := desc.Columns
 	if len(desc.Mutations) > 0 {
+		cols = make([]sqlbase.ColumnDescriptor, 0, len(desc.Columns)+len(desc.Mutations))
+		cols = append(cols, desc.Columns...)
 		for _, m := range desc.Mutations {
 			if ColumnMutationFilter(m) {
 				desc := *m.GetColumn()
@@ -76,19 +80,44 @@ func (cb *ColumnBackfiller) Init(
 				case sqlbase.DescriptorMutation_DROP:
 					dropped = append(dropped, desc)
 				}
+				cols = append(cols, desc)
 			}
 		}
 	}
-	defaultExprs, err := sqlbase.MakeDefaultExprs(
-		cb.added, &transform.ExprTransformContext{}, cb.evalCtx,
-	)
-	if err != nil {
-		return err
+
+	colTyps := make([]*types.T, len(cols))
+	for i := range cols {
+		colTyps[i] = cols[i].Type
 	}
-	var txCtx transform.ExprTransformContext
-	computedExprs, err := sqlbase.MakeComputedExprs(cb.added, desc,
-		tree.NewUnqualifiedTableName(tree.Name(desc.Name)), &txCtx, cb.evalCtx, true /* addingCols */)
-	if err != nil {
+	var defaultExprs, computedExprs []tree.TypedExpr
+	if err := cb.evalCtx.DB.Txn(evalCtx.Context, func(_ context.Context, txn *kv.Txn) error {
+		evalCtx.Txn = txn
+		// Hydrate types used by the backfiller.
+		if err := execinfrapb.HydrateTypeSlice(evalCtx, colTyps); err != nil {
+			return err
+		}
+		// Create a context that we can analyze these default expressions under.
+		semaCtx := tree.MakeSemaContext()
+		semaCtx.TypeResolver = &execinfrapb.DistSQLTypeResolver{EvalContext: evalCtx}
+		var err error
+		defaultExprs, err = sqlbase.MakeDefaultExprs(
+			cb.added, &transform.ExprTransformContext{}, cb.evalCtx, &semaCtx,
+		)
+		if err != nil {
+			return err
+		}
+		var txCtx transform.ExprTransformContext
+		computedExprs, err = sqlbase.MakeComputedExprs(
+			cb.added,
+			desc,
+			tree.NewUnqualifiedTableName(tree.Name(desc.Name)),
+			&txCtx,
+			cb.evalCtx,
+			&semaCtx,
+			true, /* addingCols */
+		)
+		return err
+	}); err != nil {
 		return err
 	}
 
@@ -355,6 +384,14 @@ func (ib *IndexBackfiller) Init(
 	ib.types = make([]*types.T, len(cols))
 	for i := range cols {
 		ib.types[i] = cols[i].Type
+	}
+
+	// Hydrate types used by the backfiller.
+	if err := ib.evalCtx.DB.Txn(evalCtx.Context, func(_ context.Context, txn *kv.Txn) error {
+		evalCtx.Txn = txn
+		return execinfrapb.HydrateTypeSlice(evalCtx, ib.types)
+	}); err != nil {
+		return err
 	}
 
 	ib.colIdxMap = make(map[sqlbase.ColumnID]int, len(cols))

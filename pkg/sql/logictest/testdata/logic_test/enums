@@ -314,3 +314,103 @@ query T
 SELECT x FROM greeting_stats
 ----
 hi
+
+subtest schema_changes
+
+statement ok
+CREATE TABLE sc (x greeting NOT NULL, y int NOT NULL);
+INSERT INTO sc VALUES ('hello', 0), ('howdy', 1), ('hi', 2);
+
+# Ensure that we can drop and create indexes on user defined type columns,
+# as well as on other columns.
+statement ok
+CREATE INDEX i1 ON sc (x);
+CREATE INDEX i2 ON sc (y);
+CREATE INDEX i3 ON sc (x, y)
+
+query T rowsort
+SELECT x FROM sc@i1
+----
+hello
+howdy
+hi
+
+query TI rowsort
+SELECT x, y FROM sc@i3
+----
+hello 0
+howdy 1
+hi 2
+
+statement ok
+DROP INDEX sc@i1;
+DROP INDEX sc@i2;
+DROP INDEX sc@i3
+
+# Test a primary key change to and away from a user defined type.
+statement ok
+ALTER TABLE sc ALTER PRIMARY KEY USING COLUMNS (x)
+
+query TI rowsort
+SELECT * FROM sc
+----
+hello 0
+howdy 1
+hi 2
+
+# Remake the table to avoid a potential test slowdown caused by
+# waiting for the primary change cleanup.
+statement ok
+DROP TABLE sc;
+CREATE TABLE sc (x greeting PRIMARY KEY, y int NOT NULL);
+INSERT INTO sc VALUES ('hello', 0), ('howdy', 1), ('hi', 2)
+
+statement ok
+ALTER TABLE sc ALTER PRIMARY KEY USING COLUMNS (y)
+
+query TI rowsort
+SELECT * FROM sc
+----
+hello 0
+howdy 1
+hi 2
+
+# Remake the table to avoid a potential test slowdown caused by
+# waiting for the primary change cleanup.
+statement ok
+DROP TABLE sc;
+CREATE TABLE sc (x greeting, y int);
+INSERT INTO sc VALUES ('hello', 0), ('howdy', 1), ('hi', 2)
+
+# Add a column with default NULL.
+statement ok
+ALTER TABLE sc ADD COLUMN z greeting
+
+query TIT rowsort
+SELECT * FROM sc
+----
+hello 0 NULL
+howdy 1 NULL
+hi    2 NULL
+
+# Add a column with a default value.
+statement ok
+ALTER TABLE sc ADD COLUMN w greeting DEFAULT 'hi'
+
+query TITT rowsort
+SELECT * FROM sc
+----
+hello 0 NULL hi
+howdy 1 NULL hi
+hi    2 NULL hi
+
+# Add a computed column.
+statement ok
+ALTER TABLE sc ADD COLUMN v greeting AS ('howdy'::greeting) STORED
+
+query TITTT rowsort
+SELECT * FROM sc
+----
+hello 0 NULL hi howdy
+howdy 1 NULL hi howdy
+hi    2 NULL hi howdy

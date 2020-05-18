@@ -495,9 +495,10 @@ func (expr *CastExpr) TypeCheck(ctx *SemaContext, _ *types.T) (TypedExpr, error)
 
 	if ok, c := isCastDeepValid(castFrom, exprType); ok {
 		telemetry.Inc(c)
-		expr.Expr = typedSubExpr
-		expr.typ = exprType
-		return expr, nil
+		resExpr := NewTypedCastExpr(typedSubExpr, exprType)
+		resExpr.SyntaxMode = expr.SyntaxMode
+		// TODO (rohany): Or just write into the expr like we wwere doing.
+		return resExpr, nil
 	}
 
 	return nil, pgerror.Newf(pgcode.CannotCoerce, "invalid cast: %s -> %s", castFrom, exprType)
