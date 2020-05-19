@@ -4169,6 +4169,9 @@ func (desc *TypeDescriptor) HydrateTypeInfo(typ *types.T) error {
 			PhysicalRepresentations: physical,
 		}
 		return nil
+	case TypeDescriptor_ALIAS:
+		// This is a noop until we possibly allow aliases to user defined types.
+		return nil
 	default:
 		return errors.AssertionFailedf("unknown type descriptor kind %s", desc.Kind)
 	}
@@ -4176,6 +4179,21 @@ func (desc *TypeDescriptor) HydrateTypeInfo(typ *types.T) error {
 
 // NameResolutionResult implements the NameResolutionResult interface.
 func (desc *TypeDescriptor) NameResolutionResult() {}
+
+// MakeSimpleAliasTypeDescriptor creates a type descriptor that is an alias
+// for the input type. It is intended to be used as an intermediate for name
+// resolution, and should not be serialized and stored on disk.
+func MakeSimpleAliasTypeDescriptor(typ *types.T) *TypeDescriptor {
+	return &TypeDescriptor{
+		ParentID:       InvalidID,
+		ParentSchemaID: InvalidID,
+		Name:           typ.Name(),
+		ID:             InvalidID,
+		OID:            uint32(typ.Oid()),
+		Kind:           TypeDescriptor_ALIAS,
+		Alias:          typ,
+	}
+}
 
 // GetAuditMode implements the DescriptorProto interface.
 func (desc *SchemaDescriptor) GetAuditMode() TableDescriptor_AuditMode {
