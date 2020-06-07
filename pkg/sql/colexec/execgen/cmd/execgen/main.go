@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/cockroachdb/cockroach/pkg/sql/colexec/execgen"
 	"github.com/cockroachdb/cockroach/pkg/sql/colexecbase/colexecerror"
@@ -126,8 +127,16 @@ func (g *execgenTool) generate(path string, entry entry) error {
 		if err != nil {
 			return err
 		}
+		contents := string(inputFileBytes)
+		if strings.Contains(path, "any_not_null_agg") {
+			var err error
+			contents, err = execgen.TemplatizeFuncs(string(inputFileBytes))
+			if err != nil {
+				return err
+			}
+		}
 		// Inline functions with // execgen:inline.
-		inputFileContents, err = execgen.InlineFuncs(string(inputFileBytes))
+		inputFileContents, err = execgen.InlineFuncs(contents)
 		if err != nil {
 			return err
 		}
@@ -163,6 +172,7 @@ func (g *execgenTool) generate(path string, entry entry) error {
 		return err
 	}
 	return writeErr
+	return nil
 }
 
 // usage is a replacement usage function for the flags package.
