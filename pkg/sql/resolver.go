@@ -152,8 +152,24 @@ func (p *planner) CommonLookupFlags(required bool) tree.CommonLookupFlags {
 func (p *planner) GetTypeDescriptor(
 	ctx context.Context, id sqlbase.ID,
 ) (*tree.TypeName, sqlbase.TypeDescriptorInterface, error) {
-	// TODO (rohany): This should go through the descs.Collection.
-	return resolver.ResolveTypeDescByID(ctx, p.txn, p.ExecCfg().Codec, id, tree.ObjectLookupFlags{})
+	desc, err := p.Descriptors().GetTypeVersionByID(
+		ctx,
+		p.txn,
+		id,
+		tree.ObjectLookupFlags{
+			CommonLookupFlags: tree.CommonLookupFlags{Required: true},
+		},
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	// TODO (rohany): I think that the desc.Collection should look up and find the qualified names.
+	dbDesc, err := sqlbase.GetDatabaseDescFromID(ctx, p.txn, p.ExecCfg().Codec, desc.ParentID)
+	if err != nil {
+		return nil, nil, err
+	}
+	name := tree.MakeNewQualifiedTypeName(dbDesc.Name, tree.PublicSchema, desc.Name)
+	return &name, desc, nil
 }
 
 // ResolveType implements the TypeReferenceResolver interface.
@@ -190,10 +206,9 @@ func (p *planner) ResolveType(
 
 // ResolveTypeByID implements the tree.TypeResolver interface.
 func (p *planner) ResolveTypeByID(ctx context.Context, id uint32) (*types.T, error) {
-	name, desc, err := resolver.ResolveTypeDescByID(
+	desc, err := p.Descriptors().GetTypeVersionByID(
 		ctx,
 		p.txn,
-		p.ExecCfg().Codec,
 		sqlbase.ID(id),
 		tree.ObjectLookupFlags{
 			CommonLookupFlags: tree.CommonLookupFlags{Required: true},
@@ -202,7 +217,13 @@ func (p *planner) ResolveTypeByID(ctx context.Context, id uint32) (*types.T, err
 	if err != nil {
 		return nil, err
 	}
-	return desc.MakeTypesT(ctx, name, p)
+	// TODO (rohany): I think that the desc.Collection should look up and find the qualified names.
+	dbDesc, err := sqlbase.GetDatabaseDescFromID(ctx, p.txn, p.ExecCfg().Codec, desc.ParentID)
+	if err != nil {
+		return nil, err
+	}
+	name := tree.MakeNewQualifiedTypeName(dbDesc.Name, tree.PublicSchema, desc.Name)
+	return desc.MakeTypesT(ctx, &name, p)
 }
 
 // maybeHydrateTypesInDescriptor hydrates any types.T's in the input descriptor.

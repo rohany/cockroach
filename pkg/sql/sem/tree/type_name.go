@@ -195,6 +195,11 @@ func (node *IDTypeReference) SQLString() string {
 	return fmt.Sprintf("@%d", node.ID)
 }
 
+// Format implements the NodeFormatter interface.
+func (node *IDTypeReference) Format(ctx *FmtCtx) {
+	ctx.WriteString(fmt.Sprintf("@%d", node.ID))
+}
+
 // ArrayTypeReference represents an array of possibly unknown type references.
 type ArrayTypeReference struct {
 	ElementType ResolvableTypeReference

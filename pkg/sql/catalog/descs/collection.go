@@ -146,6 +146,25 @@ func isSupportedSchemaName(n tree.Name) bool {
 	return n == tree.PublicSchemaName || strings.HasPrefix(string(n), "pg_temp")
 }
 
+// GetMutableTypeDescriptor returns a mutable type descriptor.
+//
+// If flags.required is false, GetMutableTypeDescriptor() will gracefully
+// return a nil descriptor and no error if the table does not exist.
+//
+func (tc *Collection) GetMutableTypeDescriptor(
+	ctx context.Context, txn *kv.Txn, tn *tree.TypeName, flags tree.ObjectLookupFlags,
+) (*sqlbase.MutableTypeDescriptor, error) {
+	desc, err := tc.getMutableObjectDescriptor(ctx, txn, tn, flags)
+	if err != nil {
+		return nil, err
+	}
+	mutDesc, ok := desc.(*sqlbase.MutableTypeDescriptor)
+	if !ok {
+		return nil, nil
+	}
+	return mutDesc, nil
+}
+
 // GetMutableTableDescriptor returns a mutable table descriptor.
 //
 // If flags.required is false, GetMutableTableDescriptor() will gracefully
@@ -261,6 +280,34 @@ func (tc *Collection) ResolveSchemaID(
 	}
 	tc.schemaCache.Store(key, schemaID)
 	return exists, schemaID, err
+}
+
+// GetTypeVersion returns a type descriptor with a version suitable for
+// the transaction: type.ModificationTime <= txn.Timestamp < expirationTime.
+// The type must be released by calling tc.ReleaseAll().
+//
+// If flags.required is false, GetTypeVersion() will gracefully
+// return a nil descriptor and no error if the type does not exist.
+//
+// It might also add a transaction deadline to the transaction that is
+// enforced at the KV layer to ensure that the transaction doesn't violate
+// the validity window of the type descriptor version returned.
+//
+func (tc *Collection) GetTypeVersion(
+	ctx context.Context, txn *kv.Txn, tn *tree.TypeName, flags tree.ObjectLookupFlags,
+) (*sqlbase.ImmutableTypeDescriptor, error) {
+	desc, err := tc.getObjectVersion(ctx, txn, tn, flags)
+	if err != nil {
+		return nil, err
+	}
+	typ, ok := desc.(*sqlbase.ImmutableTypeDescriptor)
+	if !ok {
+		if flags.Required {
+			return nil, sqlbase.NewUndefinedTypeError(tn)
+		}
+		return nil, nil
+	}
+	return typ, nil
 }
 
 // GetTableVersion returns a table descriptor with a version suitable for
@@ -417,6 +464,24 @@ func (tc *Collection) getObjectVersion(
 	return desc, nil
 }
 
+// GetTypeVersionByID is a by-ID variant of GetTypeVersion (i.e. uses same cache).
+func (tc *Collection) GetTypeVersionByID(
+	ctx context.Context, txn *kv.Txn, typeID sqlbase.ID, flags tree.ObjectLookupFlags,
+) (*sqlbase.ImmutableTypeDescriptor, error) {
+	desc, err := tc.getDescriptorVersionByID(ctx, txn, typeID, flags)
+	if err != nil {
+		if errors.Is(err, sqlbase.ErrDescriptorNotFound) {
+			return nil, sqlbase.NewUndefinedTypeError(&tree.IDTypeReference{ID: uint32(typeID)})
+		}
+		return nil, err
+	}
+	typ, ok := desc.(*sqlbase.ImmutableTypeDescriptor)
+	if !ok {
+		return nil, sqlbase.NewUndefinedRelationError(&tree.IDTypeReference{ID: uint32(typeID)})
+	}
+	return typ, nil
+}
+
 // GetTableVersionByID is a by-ID variant of GetTableVersion (i.e. uses same cache).
 func (tc *Collection) GetTableVersionByID(
 	ctx context.Context, txn *kv.Txn, tableID sqlbase.ID, flags tree.ObjectLookupFlags,
@@ -495,6 +560,18 @@ func (tc *Collection) getDescriptorVersionByID(
 	// from committing beyond the version's expiration time.
 	txn.UpdateDeadlineMaybe(ctx, expiration)
 	return desc, nil
+}
+
+// GetMutableTypeVersionByID returns a mutable type descriptor of the type
+// modified in the same transaction.
+func (tc *Collection) GetMutableTypeVersionByID(
+	ctx context.Context, typeID sqlbase.ID, txn *kv.Txn,
+) (*sqlbase.MutableTypeDescriptor, error) {
+	desc, err := tc.getMutableDescriptorByID(ctx, typeID, txn)
+	if err != nil {
+		return nil, err
+	}
+	return desc.(*sqlbase.MutableTypeDescriptor), nil
 }
 
 // GetMutableTableVersionByID is a variant of sqlbase.GetTableDescFromID which returns a mutable
